@@ -101,7 +101,7 @@ Deno.test("Day of week pattern - multiple specific days", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 9 * * 1,3,5",
   );
-  assertEquals(result, "Every Monday, Wednesday and Friday at 9 AM");
+  assertEquals(result, "Every Monday, Wednesday, and Friday at 9 AM");
 });
 
 // Month patterns
@@ -126,7 +126,7 @@ Deno.test("Month pattern - multiple specific months", () => {
   );
   assertEquals(
     result,
-    "At 12 PM, on the 1st day of the month in March, June, September and December",
+    "At 12 PM, on the 1st day of the month in March, June, September, and December",
   );
 });
 
