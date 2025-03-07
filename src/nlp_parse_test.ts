@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
-import { CronxNlp } from "./nlp.ts";
+import { CronxNLP } from "./nlp.ts";
 
-const cronxNlp = new CronxNlp({ timeFormat: "12h" });
+const cronxNlp = new CronxNLP({ timeFormat: "12h" });
 
 Deno.test("Basic patterns", async (t) => {
   await t.step("every minute", () => {

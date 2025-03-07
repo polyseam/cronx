@@ -3,7 +3,7 @@ import { Input, Select } from "@cliffy/prompt";
 import { colors } from "@cliffy/ansi/colors";
 import deno_json from "../deno.json" with { type: "json" };
 
-import { CronxNlp, TimeFormat } from "./nlp.ts";
+import { CronxNLP, TimeFormat } from "./nlp.ts";
 
 export const cronx = new Command().name("cronx")
   .description("A crontab expression generator with natural language support.")
@@ -35,7 +35,7 @@ export const cronx = new Command().name("cronx")
       timeFormat,
     } = options;
 
-    const cronxNlp = new CronxNlp({
+    const cronxNlp = new CronxNLP({
       timeFormat: timeFormat as TimeFormat,
     });
 
