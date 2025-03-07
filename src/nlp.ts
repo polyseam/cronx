@@ -143,20 +143,23 @@ export class CronxNlp {
     }
 
     // Check for specific day of the week
-    for (const [dayName, dayIndex] of Object.entries(DAYS_OF_WEEK_MAP)) {
-      if (normalizedInput.startsWith(`every ${dayName}`)) {
-        // Special cases
-        if (dayIndex === -1) { // Weekday
-          return this.handleSpecificTimeOfDay(normalizedInput, "0 0 * * 1-5");
-        }
-        if (dayIndex === -2) { // Weekend
-          return this.handleSpecificTimeOfDay(normalizedInput, "0 0 * * 0,6");
-        }
+    // Check for single day patterns (but not when it could be part of a multi-day pattern)
+    if (!normalizedInput.match(/every\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:[,\s]+(?:and\s+)?|\s+and\s+)/i)) {
+      for (const [dayName, dayIndex] of Object.entries(DAYS_OF_WEEK_MAP)) {
+        if (normalizedInput.startsWith(`every ${dayName}`)) {
+          // Special cases
+          if (dayIndex === -1) { // Weekday
+            return this.handleSpecificTimeOfDay(normalizedInput, "0 0 * * 1-5");
+          }
+          if (dayIndex === -2) { // Weekend
+            return this.handleSpecificTimeOfDay(normalizedInput, "0 0 * * 0,6");
+          }
 
-        return this.handleSpecificTimeOfDay(
-          normalizedInput,
-          `0 0 * * ${dayIndex}`,
-        );
+          return this.handleSpecificTimeOfDay(
+            normalizedInput,
+            `0 0 * * ${dayIndex}`,
+          );
+        }
       }
     }
 
@@ -172,17 +175,18 @@ export class CronxNlp {
     // Check for multiple days of the week
     // Pattern for "Monday, Wednesday, Friday" style
     const daysPattern =
-      /every\s+((?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:(?:,|,?\s+and)\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday))+)/i;
+      /every\s+((?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:(?:,\s*|,?\s+and\s+)(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday))*)/i;
     const matchDays = normalizedInput.match(daysPattern);
 
     if (matchDays) {
       // Extract all days mentioned in the input
-      const daysList: number[] = [];
-      // Look specifically for day names to avoid other words in the input
+      let daysList: number[] = [];
+      
+      // First approach: Use regex to match specific day names
       const daysMatches = normalizedInput.match(
         /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
       );
-
+      
       if (daysMatches) {
         for (const day of daysMatches) {
           // For cron expressions, we need to map Sunday=0, Monday=1, etc.
@@ -192,42 +196,37 @@ export class CronxNlp {
           }
         }
       }
+      
+      // If no days were found with regex, try the alternative approach
+      if (daysList.length === 0) {
+        // Check for weekend days specifically
+        if (
+          normalizedInput.includes("saturday") &&
+          normalizedInput.includes("sunday")
+        ) {
+          return this.handleSpecificTimeOfDay(normalizedInput, "0 0 * * 0,6");
+        }
+
+        // Alternative approach: Check for day names directly in the input
+        daysList = Object.entries(DAYS_OF_WEEK_MAP)
+          .filter(([name, _]) =>
+            normalizedInput.includes(name) && name !== "weekday" &&
+            name !== "weekend"
+          )
+          .map(([_, index]) => index)
+          .filter(index => index >= 0); // Ensure only valid day indices
+      }
+
+      // Process the extracted days
       if (daysList.length > 0) {
         // Sort days of week chronologically
         daysList.sort((a, b) => a - b);
+        // Join all the day values with commas to create the cron format
         const daysString = daysList.join(",");
         return this.handleSpecificTimeOfDay(
           normalizedInput,
           `0 0 * * ${daysString}`,
         );
-      }
-
-      // Check for weekend days specifically
-      if (
-        normalizedInput.includes("saturday") &&
-        normalizedInput.includes("sunday")
-      ) {
-        return this.handleSpecificTimeOfDay(normalizedInput, "0 0 * * 0,6");
-      }
-
-      // Fallback to the previous implementation for other cases
-      if (!matchDays) {
-        const daysList = Object.entries(DAYS_OF_WEEK_MAP)
-          .filter(([name, _]) =>
-            normalizedInput.includes(name) && name !== "weekday" &&
-            name !== "weekend"
-          )
-          .map(([_, index]) => index);
-
-        if (daysList.length > 1) {
-          // Sort days of week chronologically
-          daysList.sort((a, b) => a - b);
-          const daysString = daysList.join(",");
-          return this.handleSpecificTimeOfDay(
-            normalizedInput,
-            `0 0 * * ${daysString}`,
-          );
-        }
       }
 
       // Check for day of month
