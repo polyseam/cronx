@@ -383,7 +383,7 @@ export class CronxNLP {
 
       // Also handle "every hour from 9am to 5pm" pattern
       const hourRangePattern2 = normalizedInput.match(
-        /every (hour|minute|(\\d+) minutes?) from (\\d+)(?::(\\d+))?(am|pm) to (\\d+)(?::(\\d+))?(am|pm)/i,
+        /every (hour|minute|(\d+) minutes?) from (\d+)(?::(\d+))?(am|pm) to (\d+)(?::(\d+))?(am|pm)/i,
       );
 
       // Handle day with time range pattern
@@ -607,9 +607,11 @@ export class CronxNLP {
     }
 
     // Check for yearly with specific times
+    // Check for yearly with specific times
     if (
       normalizedInput.includes("every year at") ||
-      normalizedInput.includes("yearly at")
+      normalizedInput.includes("yearly at") ||
+      normalizedInput.includes("annually at")
     ) {
       // Extract the time part after "at"
       const timeMatch = normalizedInput.match(/ at (.+)$/);
@@ -622,7 +624,6 @@ export class CronxNLP {
       }
       return "0 0 1 1 *"; // Default to midnight on January 1st
     }
-
     // Default return to ensure all code paths return a value
     return "* * * * *";
   }
@@ -762,7 +763,7 @@ export class CronxNLP {
     // Parse HH:MM format
     // Parse HH:MM format
     const timeMatch = lowerTimeStr.match(/(\d+)(?::(\d+))?\s*(am|pm)?/i);
-    
+
     if (timeMatch) {
       hour = parseInt(timeMatch[1]);
       if (timeMatch[2]) {
@@ -830,21 +831,21 @@ export class CronxNLP {
     if (minute === "0" && hour === "0") {
       if (dayOfMonth === "*" && month === "*") {
         if (dayOfWeek === "0") {
-          return "Every Sunday at midnight";
+          return "Every Sunday at 12 AM";
         } else if (dayOfWeek === "1") {
-          return "Every Monday at midnight";
+          return "Every Monday at 12 AM";
         } else if (dayOfWeek === "2") {
-          return "Every Tuesday at midnight";
+          return "Every Tuesday at 12 AM";
         } else if (dayOfWeek === "3") {
-          return "Every Wednesday at midnight";
+          return "Every Wednesday at 12 AM";
         } else if (dayOfWeek === "4") {
-          return "Every Thursday at midnight";
+          return "Every Thursday at 12 AM";
         } else if (dayOfWeek === "5") {
-          return "Every Friday at midnight";
+          return "Every Friday at 12 AM";
         } else if (dayOfWeek === "6") {
-          return "Every Saturday at midnight";
+          return "Every Saturday at 12 AM";
         } else if (dayOfWeek === "*") {
-          return "Every day at midnight";
+          return "Every day at 12 AM";
         }
       }
     }
@@ -853,9 +854,9 @@ export class CronxNLP {
     if (dayOfMonth === "*" && month === "*" && dayOfWeek === "*") {
       // Specific time each day
       if (minute === "0" && hour === "12") {
-        return "Every day at noon";
+        return "Every day at 12 PM";
       } else if (minute === "0" && hour === "0") {
-        return "Every day at midnight";
+        return "Every day at 12 AM";
       } else {
         const hourNum = parseInt(hour);
         const minuteNum = parseInt(minute);
@@ -875,9 +876,9 @@ export class CronxNLP {
       // Check if this is "Every month at specific time" pattern (dayOfMonth = 1)
       if (dayOfMonth === "1") {
         if (minute === "0" && hour === "12") {
-          return `Every month at noon`;
+          return `Every month at 12 PM`;
         } else if (minute === "0" && hour === "0") {
-          return `Every month at midnight`;
+          return `Every month at 12 AM`;
         } else {
           const hourNum = parseInt(hour);
           const minuteNum = parseInt(minute);
@@ -888,11 +889,11 @@ export class CronxNLP {
       } else if (minute === "0" && hour === "12") {
         return `On the ${
           this.ordinalSuffix(dayOfMonth)
-        } day of every month at noon`;
+        } day of every month at 12 PM`;
       } else if (minute === "0" && hour === "0") {
         return `On the ${
           this.ordinalSuffix(dayOfMonth)
-        } day of every month at midnight`;
+        } day of every month at 12 AM`;
       } else {
         const hourNum = parseInt(hour);
         const minuteNum = parseInt(minute);
@@ -917,11 +918,11 @@ export class CronxNLP {
             if (minute === "0" && hour === "0") {
               return `Every year on ${monthName} ${
                 this.ordinalSuffix(day)
-              } at midnight`;
+              } at 12 AM`;
             } else if (minute === "0" && hour === "12") {
               return `Every year on ${monthName} ${
                 this.ordinalSuffix(day)
-              } at noon`;
+              } at 12 PM`;
             } else {
               const hourNum = parseInt(hour);
               const minuteNum = parseInt(minute);
@@ -936,11 +937,11 @@ export class CronxNLP {
               if (minute === "0" && hour === "0") {
                 return `Every year on ${monthName} ${
                   this.ordinalSuffix(day)
-                } at midnight`;
+                } at 12 AM`;
               } else if (minute === "0" && hour === "12") {
                 return `Every year on ${monthName} ${
                   this.ordinalSuffix(day)
-                } at noon`;
+                } at 12 PM`;
               } else {
                 return `Every year on ${monthName} ${
                   this.ordinalSuffix(day)
@@ -1016,7 +1017,7 @@ export class CronxNLP {
 
     // Special cases for noon and midnight - handle these first consistently
     if (hour === 12 && minute === 0) {
-      return "noon";
+      return "12 PM";
     } else if (hour === 0 && minute === 0) {
       return "midnight";
     }
@@ -1025,7 +1026,7 @@ export class CronxNLP {
       // Special cases for 12 AM/PM
       if (minute === 0) {
         if (hour === 0) return "midnight";
-        if (hour === 12) return "noon";
+        if (hour === 12) return "12 PM";
       }
 
       const period = hour >= 12 ? "PM" : "AM";
@@ -1103,7 +1104,7 @@ export class CronxNLP {
     } else if (hour.includes("-")) {
       const [start, _end] = hour.split("-").map(Number);
       if (start === 12 && minute === "0") {
-        description.push("at noon");
+        description.push("at 12 PM");
       } else {
         description.push(`at ${this.formatTime(start, 0)}`);
       }
@@ -1111,9 +1112,9 @@ export class CronxNLP {
       const hourNum = parseInt(hour);
       if (!isNaN(hourNum)) {
         if (hourNum === 12 && minute === "0") {
-          description.push("at noon");
+          description.push("at 12 PM");
         } else if (hourNum === 0 && minute === "0") {
-          description.push("at midnight");
+          description.push("at 12 AM");
         } else {
           description.push(`at ${this.formatTime(hourNum, 0)}`);
         }
@@ -1130,13 +1131,13 @@ export class CronxNLP {
         const minuteNum = parseInt(minute);
         if (!isNaN(hourNum) && !isNaN(minuteNum)) {
           description = [
-            `On the last day of every month at ${
+            `At ${
               this.formatTime(hourNum, minuteNum)
-            }`,
+            } on the last day of the month`,
           ];
           return description.join(" ");
         } else {
-          description[0] = "On the last day of every month";
+          description[0] = "On the last day of the month";
         }
       } else if (dayOfMonth.includes(",")) {
         const days = dayOfMonth.split(",");
@@ -1160,6 +1161,7 @@ export class CronxNLP {
             ? MONTHS[monthIndex]
             : `month ${m}`;
         });
+
         if (months.length === 2) {
           description.push(`in ${months[0]} and ${months[1]}`);
         } else {
@@ -1190,7 +1192,17 @@ export class CronxNLP {
     if (dayOfWeek !== "*") {
       if (dayOfWeek === "1-5") {
         // If we have a specific minute interval with a specific hour, format it differently
-        if (minute.startsWith("*/") && hour !== "*" && !isNaN(parseInt(hour))) {
+        if (minute.startsWith("*/") && hour.includes("-")) {
+          const minuteInterval = minute.substring(2);
+          const [startHour, endHour] = hour.split("-").map(Number);
+          description = [
+            `Every ${minuteInterval} minutes at ${startHour} AM to ${endHour}PM`,
+          ];
+          description.push("from Monday to Friday");
+          return description.join(", ");
+        } else if (
+          minute.startsWith("*/") && hour !== "*" && !isNaN(parseInt(hour))
+        ) {
           const minuteInterval = minute.substring(2);
           const hourNum = parseInt(hour);
           description[0] = `Every ${minuteInterval} minutes at ${

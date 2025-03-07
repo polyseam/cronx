@@ -40,68 +40,75 @@ Deno.test("Basic pattern - every N hours", () => {
 });
 
 // Time-specific patterns
-Deno.test("Time-specific pattern - every day at midnight", () => {
+Deno.test("Time-specific pattern - every day at 12 AM", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 0 * * *",
   );
-  assertEquals(result, "Every day at midnight");
+  assertEquals(result, "At 12 AM every day");
 });
 
-Deno.test("Time-specific pattern - every day at noon", () => {
+Deno.test("Time-specific pattern - every day at 12 PM", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 12 * * *",
   );
-  assertEquals(result, "Every day at noon");
+  assertEquals(result, "At 12 PM every day");
 });
 
 Deno.test("Time-specific pattern - every day at specific time (AM)", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "30 9 * * *",
   );
-  assertEquals(result, "Every day at 9:30 AM");
+  assertEquals(result, "At 9:30 AM every day");
 });
 
 Deno.test("Time-specific pattern - every day at specific time (PM)", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "45 15 * * *",
   );
-  assertEquals(result, "Every day at 3:45 PM");
+  assertEquals(result, "At 3:45 PM every day");
 });
 
 // Day of week patterns
-Deno.test("Day of week pattern - every Monday at midnight", () => {
+Deno.test("Day of week pattern - every Monday at 12 AM", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 0 * * 1",
   );
-  assertEquals(result, "Every Monday at midnight");
+  assertEquals(result, "At 12 AM every Monday");
 });
 
 Deno.test("Day of week pattern - every Sunday at specific time", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "30 10 * * 0",
   );
-  assertEquals(result, "Every Sunday at 10:30 AM");
+  assertEquals(result, "At 10:30 AM every Sunday");
 });
 
 Deno.test("Day of week pattern - weekdays at specific time", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 8 * * 1-5",
   );
-  assertEquals(result, "Every weekday at 8 AM");
+  assertEquals(result, "At 8 AM from Monday to Friday");
+});
+
+Deno.test("Day of week pattern - weekdays at specific time", () => {
+  const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
+    "0 13 * * 2-4",
+  );
+  assertEquals(result, "At 1 PM from Tuesday to Thursday");
 });
 
 Deno.test("Day of week pattern - weekends at specific time", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 10 * * 0,6",
   );
-  assertEquals(result, "Every Saturday and Sunday at 10 AM");
+  assertEquals(result, "At 10 AM every Saturday and Sunday");
 });
 
 Deno.test("Day of week pattern - multiple specific days", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 9 * * 1,3,5",
   );
-  assertEquals(result, "Every Monday, Wednesday, and Friday at 9 AM");
+  assertEquals(result, "At 9AM every Monday, Wednesday, and Friday");
 });
 
 // Month patterns
@@ -109,14 +116,14 @@ Deno.test("Month pattern - specific day every month", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 12 15 * *",
   );
-  assertEquals(result, "On the 15th day of every month at noon");
+  assertEquals(result, "At 12 PM on the 15th day of every month");
 });
 
 Deno.test("Month pattern - specific month and day", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 0 1 1 *",
   );
-  assertEquals(result, "Every year on January 1st at 12 AM");
+  assertEquals(result, "At 12 AM Every year on January 1st");
 });
 
 Deno.test("Month pattern - multiple specific months", () => {
