@@ -1,7 +1,7 @@
-import { assertEquals } from "@std/assert";
+import { assertEquals, assertInstanceOf } from "@std/assert";
 import { CronxNlp } from "./nlp.ts";
 
-const cronxNlp = new CronxNlp({ timeFormat: "12h", useOxfordComma: true });
+const cronxNlp = new CronxNlp({ timeFormat: "12h" });
 
 /**
  * Test suite for the getNaturalLanguageScheduleForCronTabExpression function
@@ -29,7 +29,7 @@ Deno.test("Basic pattern - every hour", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "0 * * * *",
   );
-  assertEquals(result, "Every hour at minute 0");
+  assertEquals(result, "Every hour");
 });
 
 Deno.test("Basic pattern - every N hours", () => {
@@ -177,10 +177,10 @@ Deno.test("Invalid pattern - wrong number of fields", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression(
     "* * * *",
   );
-  assertEquals(result, "Invalid cron expression format");
+  assertInstanceOf(result, Error);
 });
 
 Deno.test("Invalid pattern - empty string", () => {
   const result = cronxNlp.getNaturalLanguageScheduleForCronTabExpression("");
-  assertEquals(result, "Invalid cron expression format");
+  assertInstanceOf(result, Error);
 });

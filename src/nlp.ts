@@ -4,7 +4,6 @@ export type TimeFormat = "12h" | "24h";
 
 export type CronxConfig = {
   timeFormat: TimeFormat;
-  useOxfordComma: boolean;
 };
 
 const DAYS_OF_WEEK = [
@@ -144,7 +143,11 @@ export class CronxNlp {
 
     // Check for specific day of the week
     // Check for single day patterns (but not when it could be part of a multi-day pattern)
-    if (!normalizedInput.match(/every\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:[,\s]+(?:and\s+)?|\s+and\s+)/i)) {
+    if (
+      !normalizedInput.match(
+        /every\s+(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:[,\s]+(?:and\s+)?|\s+and\s+)/i,
+      )
+    ) {
       for (const [dayName, dayIndex] of Object.entries(DAYS_OF_WEEK_MAP)) {
         if (normalizedInput.startsWith(`every ${dayName}`)) {
           // Special cases
@@ -181,12 +184,12 @@ export class CronxNlp {
     if (matchDays) {
       // Extract all days mentioned in the input
       let daysList: number[] = [];
-      
+
       // First approach: Use regex to match specific day names
       const daysMatches = normalizedInput.match(
         /\b(monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/gi,
       );
-      
+
       if (daysMatches) {
         for (const day of daysMatches) {
           // For cron expressions, we need to map Sunday=0, Monday=1, etc.
@@ -196,7 +199,7 @@ export class CronxNlp {
           }
         }
       }
-      
+
       // If no days were found with regex, try the alternative approach
       if (daysList.length === 0) {
         // Check for weekend days specifically
@@ -214,7 +217,7 @@ export class CronxNlp {
             name !== "weekend"
           )
           .map(([_, index]) => index)
-          .filter(index => index >= 0); // Ensure only valid day indices
+          .filter((index) => index >= 0); // Ensure only valid day indices
       }
 
       // Process the extracted days
@@ -419,7 +422,7 @@ export class CronxNlp {
       // Fallback to a generically valid cron expression
       return "* * * * *";
     }
-    
+
     // Check for daily with specific times
     if (
       normalizedInput.includes("every day at") ||
@@ -427,7 +430,7 @@ export class CronxNlp {
     ) {
       return this.handleDailyWithTime(normalizedInput);
     }
-    
+
     // Default return to ensure all code paths return a value
     return "* * * * *";
   }
@@ -590,11 +593,11 @@ export class CronxNlp {
   }
   getNaturalLanguageScheduleForCronTabExpression(
     expression: CronTabExpression,
-  ): NaturalLanguageSchedule {
+  ): NaturalLanguageSchedule | Error {
     // Validate the cron expression format
     const parts = expression.trim().split(/\s+/);
     if (parts.length !== 5) {
-      return "Invalid cron expression format";
+      return new Error(`Invalid cron expression format: "${expression}"`);
     }
 
     const [minute, hour, dayOfMonth, month, dayOfWeek] = parts;
@@ -801,7 +804,7 @@ export class CronxNlp {
       } else {
         const lastDay = days.pop();
         return `Every ${days.join(", ")}${
-          this.config.useOxfordComma && days.length > 0 ? "," : ""
+          days.length > 0 ? "," : ""
         } and ${lastDay} at ${this.formatTime(hourNum, minuteNum)}`;
       }
     }
@@ -942,7 +945,7 @@ export class CronxNlp {
           const lastMonth = months.pop();
           description.push(
             `in ${months.join(", ")}${
-              this.config.useOxfordComma && months.length > 0 ? "," : ""
+              months.length > 0 ? "," : ""
             } and ${lastMonth}`,
           );
         }
@@ -984,9 +987,7 @@ export class CronxNlp {
         } else {
           const lastDay = days.pop();
           description.push(
-            `on ${days.join(", ")}${
-              this.config.useOxfordComma && days.length > 0 ? "," : ""
-            } and ${lastDay}`,
+            `on ${days.join(", ")}${days.length > 0 ? "," : ""} and ${lastDay}`,
           );
         }
       } else if (dayOfWeek.includes("-")) {

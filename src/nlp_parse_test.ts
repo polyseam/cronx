@@ -1,7 +1,7 @@
 import { assertEquals } from "@std/assert";
 import { CronxNlp } from "./nlp.ts";
 
-const cronxNlp = new CronxNlp({ timeFormat: "12h", useOxfordComma: true });
+const cronxNlp = new CronxNlp({ timeFormat: "12h" });
 
 Deno.test("Basic patterns", async (t) => {
   await t.step("every minute", () => {
@@ -65,7 +65,7 @@ Deno.test("Basic patterns", async (t) => {
     assertEquals(
       cronxNlp.getCronTabExpressionForNaturalLanguageSchedule("every Monday"),
       "0 0 * * 1",
-    ) 
+    );
   });
 });
 
