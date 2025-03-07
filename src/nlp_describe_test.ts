@@ -1,7 +1,7 @@
 import { assertEquals, assertInstanceOf } from "@std/assert";
-import { CronxNlp } from "./nlp.ts";
+import { CronxNLP } from "./nlp.ts";
 
-const cronxNlp = new CronxNlp({ timeFormat: "12h" });
+const cronxNlp = new CronxNLP({ timeFormat: "12h" });
 
 /**
  * Test suite for the getNaturalLanguageScheduleForCronTabExpression function
@@ -126,7 +126,7 @@ Deno.test("Month pattern - multiple specific months", () => {
   );
   assertEquals(
     result,
-    "At minute 0 at 12 PM, on the 1st day of the month in March, June, September and December",
+    "At 12 PM, on the 1st day of the month in March, June, September and December",
   );
 });
 
@@ -137,7 +137,7 @@ Deno.test("Month pattern - month range", () => {
   );
   assertEquals(
     result,
-    "At minute 0 at 12 PM, on the 1st day of the month from June to August",
+    "At 12 PM, on the 1st day of the month from June to August",
   );
 });
 
@@ -168,7 +168,7 @@ Deno.test("Complex pattern - specific time on last day of month", () => {
   );
   assertEquals(
     result,
-    "At minute 0 at 11 PM, on the L day of the month",
+    "At 11 PM, on the last day of the month",
   );
 });
 

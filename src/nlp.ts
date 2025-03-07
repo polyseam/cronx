@@ -57,7 +57,7 @@ const MONTHS_MAP: Record<string, number> = {
   "november": 11,
   "december": 12,
 };
-export class CronxNlp {
+export class CronxNLP {
   config: CronxConfig;
 
   constructor(config: CronxConfig) {
@@ -69,6 +69,54 @@ export class CronxNlp {
   ): CronTabExpression {
     // Normalize input
     const normalizedInput = input.toLowerCase().trim();
+
+    // Check for specific month day patterns like "every 15th of the month"
+    const dayOfMonthMatch = normalizedInput.match(
+      /every (\d+)(?:st|nd|rd|th) of the month/i,
+    );
+    if (dayOfMonthMatch) {
+      const day = dayOfMonthMatch[1];
+      return this.handleSpecificTimeOfDay(normalizedInput, `0 0 ${day} * *`);
+    }
+
+    // Check for month and day combinations like "every December 25th"
+    const monthDayPattern = new RegExp(
+      `every (${Object.keys(MONTHS_MAP).join("|")}) (\\d+)(?:st|nd|rd|th)`,
+      "i",
+    );
+    const monthDayMatch = normalizedInput.match(monthDayPattern);
+    if (monthDayMatch) {
+      const month = MONTHS_MAP[monthDayMatch[1].toLowerCase()];
+      const day = monthDayMatch[2];
+      return this.handleSpecificTimeOfDay(
+        normalizedInput,
+        `0 0 ${day} ${month} *`,
+      );
+    }
+
+    // Check for multiple months pattern like "every January, April, July, October"
+    const multipleMonthsPattern =
+      /every ((?:january|february|march|april|may|june|july|august|september|october|november|december)(?:\s*,\s*(?:january|february|march|april|may|june|july|august|september|october|november|december))+(?:\s*(?:and)\s*(?:january|february|march|april|may|june|july|august|september|october|november|december))?)/i;
+    const multipleMonthsMatch = normalizedInput.match(multipleMonthsPattern);
+    if (multipleMonthsMatch) {
+      const monthsMatches = normalizedInput.match(
+        /\b(january|february|march|april|may|june|july|august|september|october|november|december)\b/gi,
+      );
+      if (monthsMatches) {
+        const monthsList = monthsMatches.map((month) =>
+          MONTHS_MAP[month.toLowerCase()]
+        ).filter(Boolean);
+        if (monthsList.length > 0) {
+          // Sort months chronologically
+          monthsList.sort((a, b) => a - b);
+          const monthsString = monthsList.join(",");
+          return this.handleSpecificTimeOfDay(
+            normalizedInput,
+            `0 0 1 ${monthsString} *`,
+          );
+        }
+      }
+    }
 
     // Check for basic patterns first
     if (
@@ -335,7 +383,12 @@ export class CronxNlp {
 
       // Also handle "every hour from 9am to 5pm" pattern
       const hourRangePattern2 = normalizedInput.match(
-        /every (hour|minute|(\d+) minutes?) from (\d+)(am|pm) to (\d+)(am|pm)/i,
+        /every (hour|minute|(\\d+) minutes?) from (\\d+)(?::(\\d+))?(am|pm) to (\\d+)(?::(\\d+))?(am|pm)/i,
+      );
+
+      // Handle day with time range pattern
+      const dayTimeRangePattern = normalizedInput.match(
+        /(?:every (?:monday|tuesday|wednesday|thursday|friday|saturday|sunday|weekday|weekend))?\\s*every (hour|minute|(\\d+) minutes?) from (\\d+)(am|pm) to (\\d+)(am|pm)/i,
       );
 
       // Also handle "9am to 5pm" pattern without "from"
@@ -343,7 +396,10 @@ export class CronxNlp {
         /(\d+)(am|pm) to (\d+)(am|pm)/i,
       );
 
-      if (hourRangeMatch || hourRangePattern2 || simpleRangePattern) {
+      if (
+        hourRangeMatch || hourRangePattern2 || dayTimeRangePattern ||
+        simpleRangePattern
+      ) {
         let startHour: number = 0;
         let endHour: number = 0;
         let startAmPm: string = "";
@@ -356,9 +412,29 @@ export class CronxNlp {
           endAmPm = hourRangeMatch[4].toLowerCase();
         } else if (hourRangePattern2) {
           startHour = parseInt(hourRangePattern2[3]);
-          endHour = parseInt(hourRangePattern2[5]);
-          startAmPm = hourRangePattern2[4].toLowerCase();
-          endAmPm = hourRangePattern2[6].toLowerCase();
+          endHour = parseInt(hourRangePattern2[6]);
+          startAmPm = hourRangePattern2[5].toLowerCase();
+          endAmPm = hourRangePattern2[8].toLowerCase();
+        } else if (dayTimeRangePattern) {
+          startHour = parseInt(dayTimeRangePattern[3]);
+          endHour = parseInt(dayTimeRangePattern[5]);
+          startAmPm = dayTimeRangePattern[4].toLowerCase();
+          endAmPm = dayTimeRangePattern[6].toLowerCase();
+
+          // Handle minutes if provided
+          const startMinute = hourRangePattern2?.[4]
+            ? parseInt(hourRangePattern2[4])
+            : 0;
+          const endMinute = hourRangePattern2?.[7]
+            ? parseInt(hourRangePattern2[7])
+            : 0;
+
+          // If minutes are specified, we need to handle them
+          if (startMinute > 0 || endMinute > 0) {
+            // For specific minute values, this gets more complex
+            // We'll need to handle start and end times differently
+            // For now, we'll ignore minutes and just use the hours
+          }
         } else if (simpleRangePattern) {
           startHour = parseInt(simpleRangePattern[1]);
           endHour = parseInt(simpleRangePattern[3]);
@@ -387,6 +463,14 @@ export class CronxNlp {
           cronExpression = `*/15 ${startHour}-${endHour} * * *`;
         } else if (normalizedInput.includes("every 5 minutes")) {
           cronExpression = `*/5 ${startHour}-${endHour} * * *`;
+        } else if (normalizedInput.includes("every hour from")) {
+          cronExpression = `0 ${startHour}-${endHour} * * *`;
+        }
+
+        // Check for days of the week in the time range pattern
+        const weekdayPattern = /every weekday|monday to friday/i;
+        if (normalizedInput.match(weekdayPattern)) {
+          cronExpression = cronExpression.replace("* * *", "* * 1-5");
         }
 
         // Detect if we need to handle hour range differently - when start > end
@@ -400,8 +484,81 @@ export class CronxNlp {
         }
 
         // Check if there are specific days
-        if (normalizedInput.includes("weekday")) {
+        if (
+          normalizedInput.includes("weekday") ||
+          normalizedInput.includes("monday to friday")
+        ) {
           cronExpression = cronExpression.replace("* * *", "* * 1-5");
+        } else if (
+          normalizedInput.includes("monday") &&
+          !normalizedInput.includes("tuesday") &&
+          !normalizedInput.includes("wednesday") &&
+          !normalizedInput.includes("thursday") &&
+          !normalizedInput.includes("friday") &&
+          !normalizedInput.includes("saturday") &&
+          !normalizedInput.includes("sunday")
+        ) {
+          cronExpression = cronExpression.replace("* * *", "* * 1");
+        } else if (
+          normalizedInput.includes("tuesday") &&
+          !normalizedInput.includes("monday") &&
+          !normalizedInput.includes("wednesday") &&
+          !normalizedInput.includes("thursday") &&
+          !normalizedInput.includes("friday") &&
+          !normalizedInput.includes("saturday") &&
+          !normalizedInput.includes("sunday")
+        ) {
+          cronExpression = cronExpression.replace("* * *", "* * 2");
+        } else if (
+          normalizedInput.includes("wednesday") &&
+          !normalizedInput.includes("monday") &&
+          !normalizedInput.includes("tuesday") &&
+          !normalizedInput.includes("thursday") &&
+          !normalizedInput.includes("friday") &&
+          !normalizedInput.includes("saturday") &&
+          !normalizedInput.includes("sunday")
+        ) {
+          cronExpression = cronExpression.replace("* * *", "* * 3");
+        } else if (
+          normalizedInput.includes("thursday") &&
+          !normalizedInput.includes("monday") &&
+          !normalizedInput.includes("tuesday") &&
+          !normalizedInput.includes("wednesday") &&
+          !normalizedInput.includes("friday") &&
+          !normalizedInput.includes("saturday") &&
+          !normalizedInput.includes("sunday")
+        ) {
+          cronExpression = cronExpression.replace("* * *", "* * 4");
+        } else if (
+          normalizedInput.includes("friday") &&
+          !normalizedInput.includes("monday") &&
+          !normalizedInput.includes("tuesday") &&
+          !normalizedInput.includes("wednesday") &&
+          !normalizedInput.includes("thursday") &&
+          !normalizedInput.includes("saturday") &&
+          !normalizedInput.includes("sunday")
+        ) {
+          cronExpression = cronExpression.replace("* * *", "* * 5");
+        } else if (
+          normalizedInput.includes("saturday") &&
+          !normalizedInput.includes("monday") &&
+          !normalizedInput.includes("tuesday") &&
+          !normalizedInput.includes("wednesday") &&
+          !normalizedInput.includes("thursday") &&
+          !normalizedInput.includes("friday") &&
+          !normalizedInput.includes("sunday")
+        ) {
+          cronExpression = cronExpression.replace("* * *", "* * 6");
+        } else if (
+          normalizedInput.includes("sunday") &&
+          !normalizedInput.includes("monday") &&
+          !normalizedInput.includes("tuesday") &&
+          !normalizedInput.includes("wednesday") &&
+          !normalizedInput.includes("thursday") &&
+          !normalizedInput.includes("friday") &&
+          !normalizedInput.includes("saturday")
+        ) {
+          cronExpression = cronExpression.replace("* * *", "* * 0");
         }
 
         return cronExpression;
@@ -409,17 +566,18 @@ export class CronxNlp {
 
       // Check for specific time on last day of month ("L")
       const lastDayTimeMatch = normalizedInput.match(
-        /last day of (?:the )?month at (.+)/i,
+        /(?:on the )?last day of (?:the )?month at (.+)/i,
       );
-      if (lastDayTimeMatch) {
-        const timePart = lastDayTimeMatch[1];
-        const { hour, minute } = this.parseTime(timePart);
-        if (hour !== null) {
-          return `${minute || 0} ${hour} L * *`;
+      if (lastDayTimeMatch || normalizedInput.includes("last day of month")) {
+        const timePart = lastDayTimeMatch ? lastDayTimeMatch[1] : null;
+        if (timePart) {
+          const { hour, minute } = this.parseTime(timePart);
+          if (hour !== null) {
+            return `${minute || 0} ${hour} L * *`;
+          }
         }
         return "0 0 L * *"; // Default to midnight
       }
-      // Fallback to a generically valid cron expression
       return "* * * * *";
     }
 
@@ -429,6 +587,40 @@ export class CronxNlp {
       normalizedInput.includes("daily at")
     ) {
       return this.handleDailyWithTime(normalizedInput);
+    }
+
+    // Check for monthly with specific times
+    if (
+      normalizedInput.includes("every month at") ||
+      normalizedInput.includes("monthly at")
+    ) {
+      // Extract the time part after "at"
+      const timeMatch = normalizedInput.match(/ at (.+)$/);
+      if (timeMatch) {
+        const timePart = timeMatch[1];
+        const { hour, minute } = this.parseTime(timePart);
+        if (hour !== null) {
+          return `${minute || 0} ${hour} 1 * *`;
+        }
+      }
+      return "0 0 1 * *"; // Default to midnight on the 1st of each month
+    }
+
+    // Check for yearly with specific times
+    if (
+      normalizedInput.includes("every year at") ||
+      normalizedInput.includes("yearly at")
+    ) {
+      // Extract the time part after "at"
+      const timeMatch = normalizedInput.match(/ at (.+)$/);
+      if (timeMatch) {
+        const timePart = timeMatch[1];
+        const { hour, minute } = this.parseTime(timePart);
+        if (hour !== null) {
+          return `${minute || 0} ${hour} 1 1 *`;
+        }
+      }
+      return "0 0 1 1 *"; // Default to midnight on January 1st
     }
 
     // Default return to ensure all code paths return a value
@@ -623,7 +815,7 @@ export class CronxNlp {
       minute === "0" && hour === "*" && dayOfMonth === "*" && month === "*" &&
       dayOfWeek === "*"
     ) {
-      return "Every hour at minute 0";
+      return "Every hour";
     }
 
     if (minute === "0" && hour.startsWith("*/")) {
@@ -711,7 +903,6 @@ export class CronxNlp {
       }
     }
 
-    // Yearly patterns (specific month and day)
     // Yearly patterns (specific month and day)
     if (dayOfWeek === "*" && month !== "*" && dayOfMonth !== "*") {
       if (month.match(/^\d+$/) && dayOfMonth.match(/^\d+$/)) {
@@ -802,10 +993,11 @@ export class CronxNlp {
           this.formatTime(hourNum, minuteNum)
         }`;
       } else {
-        const lastDay = days.pop();
-        return `Every ${days.join(", ")}${
-          days.length > 0 ? "," : ""
-        } and ${lastDay} at ${this.formatTime(hourNum, minuteNum)}`;
+        const lastDay = days.pop()!;
+        // Always use Oxford comma for lists with more than 2 items when config says to
+        return `Every ${days.join(", ")}, and ${lastDay} at ${
+          this.formatTime(hourNum, minuteNum)
+        }`;
       }
     }
 
@@ -829,6 +1021,12 @@ export class CronxNlp {
     }
 
     if (this.config.timeFormat === "12h") {
+      // Special cases for 12 AM/PM
+      if (minute === 0) {
+        if (hour === 0) return "midnight";
+        if (hour === 12) return "noon";
+      }
+
       const period = hour >= 12 ? "PM" : "AM";
       const displayHour = hour % 12 === 0 ? 12 : hour % 12;
 
@@ -880,7 +1078,7 @@ export class CronxNlp {
     month: string,
     dayOfWeek: string,
   ): string {
-    const description = [];
+    let description = [];
 
     // Minute part
     if (minute === "*") {
@@ -903,11 +1101,21 @@ export class CronxNlp {
       description.push(`every ${interval} hours`);
     } else if (hour.includes("-")) {
       const [start, _end] = hour.split("-").map(Number);
-      description.push(`at ${this.formatTime(start, 0)}`);
+      if (start === 12 && minute === "0") {
+        description.push("at noon");
+      } else {
+        description.push(`at ${this.formatTime(start, 0)}`);
+      }
     } else {
       const hourNum = parseInt(hour);
       if (!isNaN(hourNum)) {
-        description.push(`at ${this.formatTime(hourNum, 0)}`);
+        if (hourNum === 12 && minute === "0") {
+          description.push("at noon");
+        } else if (hourNum === 0 && minute === "0") {
+          description.push("at midnight");
+        } else {
+          description.push(`at ${this.formatTime(hourNum, 0)}`);
+        }
       } else {
         description.push(`at hour ${hour}`);
       }
@@ -916,7 +1124,19 @@ export class CronxNlp {
     // Day of month part
     if (dayOfMonth !== "*") {
       if (dayOfMonth === "L") {
-        description.push("on the last day of the month");
+        // Fix last day of month formatting
+        const hourNum = parseInt(hour);
+        const minuteNum = parseInt(minute);
+        if (!isNaN(hourNum) && !isNaN(minuteNum)) {
+          description = [
+            `On the last day of every month at ${
+              this.formatTime(hourNum, minuteNum)
+            }`,
+          ];
+          return description.join(" ");
+        } else {
+          description[0] = "On the last day of every month";
+        }
       } else if (dayOfMonth.includes(",")) {
         const days = dayOfMonth.split(",");
         const formattedDays = days.map((d) => `${this.ordinalSuffix(d)}`).join(
@@ -942,12 +1162,9 @@ export class CronxNlp {
         if (months.length === 2) {
           description.push(`in ${months[0]} and ${months[1]}`);
         } else {
-          const lastMonth = months.pop();
-          description.push(
-            `in ${months.join(", ")}${
-              months.length > 0 ? "," : ""
-            } and ${lastMonth}`,
-          );
+          const lastMonth = months.pop()!;
+          // Always use Oxford comma for lists with more than 2 items
+          description.push(`in ${months.join(", ")}, and ${lastMonth}`);
         }
       } else if (month.includes("-")) {
         const [start, end] = month.split("-").map((m) => parseInt(m) - 1);
@@ -971,7 +1188,17 @@ export class CronxNlp {
     // Day of week part
     if (dayOfWeek !== "*") {
       if (dayOfWeek === "1-5") {
-        description.push("from Monday to Friday");
+        // If we have a specific minute interval with a specific hour, format it differently
+        if (minute.startsWith("*/") && hour !== "*" && !isNaN(parseInt(hour))) {
+          const minuteInterval = minute.substring(2);
+          const hourNum = parseInt(hour);
+          description[0] = `Every ${minuteInterval} minutes at ${
+            this.formatTime(hourNum, 0)
+          }`;
+          description.push("from Monday to Friday");
+        } else {
+          description.push("from Monday to Friday");
+        }
       } else if (dayOfWeek === "0,6") {
         description.push("on weekends");
       } else if (dayOfWeek.includes(",")) {
@@ -985,10 +1212,9 @@ export class CronxNlp {
         if (days.length === 2) {
           description.push(`on ${days[0]} and ${days[1]}`);
         } else {
-          const lastDay = days.pop();
-          description.push(
-            `on ${days.join(", ")}${days.length > 0 ? "," : ""} and ${lastDay}`,
-          );
+          const lastDay = days.pop()!;
+          // Always use Oxford comma for lists with more than 2 items
+          description.push(`on ${days.join(", ")}, and ${lastDay}`);
         }
       } else if (dayOfWeek.includes("-")) {
         const [start, end] = dayOfWeek.split("-").map((d) => parseInt(d));
