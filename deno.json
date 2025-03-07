@@ -10,6 +10,7 @@
     "@cliffy/prompt": "jsr:@cliffy/prompt@1.0.0-rc.7",
     "@polyseam/cconsole": "jsr:@polyseam/cconsole@^1.0.0",
     "@std/assert": "jsr:@std/assert@1",
+    "@std/testing": "jsr:@std/testing@^1.0.9",
     "cron-time-generator": "npm:cron-time-generator@^2.0.3",
     "src/": "./src/"
   }
