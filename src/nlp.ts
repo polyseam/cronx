@@ -762,6 +762,7 @@ export class CronxNLP {
     // Parse HH:MM format
     // Parse HH:MM format
     const timeMatch = lowerTimeStr.match(/(\d+)(?::(\d+))?\s*(am|pm)?/i);
+    
     if (timeMatch) {
       hour = parseInt(timeMatch[1]);
       if (timeMatch[2]) {

@@ -126,7 +126,7 @@ Deno.test("Month pattern - multiple specific months", () => {
   );
   assertEquals(
     result,
-    "At 12 PM, on the 1st day of the month in March, June, September, and December",
+    "At 12 PM on the 1st day of the month in March, June, September, and December",
   );
 });
 
@@ -137,7 +137,7 @@ Deno.test("Month pattern - month range", () => {
   );
   assertEquals(
     result,
-    "At 12 PM, on the 1st day of the month from June to August",
+    "At 12 PM on the 1st day of the month from June to August",
   );
 });
 
@@ -156,7 +156,7 @@ Deno.test("Complex pattern - specific days of week with intervals", () => {
   );
   assertEquals(
     result,
-    "Every 30 minutes at 9 AM, from Monday to Friday",
+    "Every 30 minutes at 9 AM to 5PM, from Monday to Friday",
   );
 });
 
@@ -168,7 +168,7 @@ Deno.test("Complex pattern - specific time on last day of month", () => {
   );
   assertEquals(
     result,
-    "At 11 PM, on the last day of the month",
+    "At 11 PM on the last day of the month",
   );
 });
 
