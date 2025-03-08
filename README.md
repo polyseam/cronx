@@ -1,6 +1,6 @@
 # @polyseam/cronx
 
-**chronix or /ˈkrɒnɪks/**_
+**chronix or /ˈkrɒnɪks/**
 
 a typescript library and cli for using cron on any platform powered by
 [Deno.cron](https://docs.deno.com/examples/cron/)
