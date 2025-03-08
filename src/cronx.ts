@@ -1,6 +1,8 @@
 import { Command, ValidationError } from "@cliffy/command";
-import { Input, Select } from "@cliffy/prompt";
+import { Confirm, Input, Select } from "@cliffy/prompt";
 import { colors } from "@cliffy/ansi/colors";
+import { CConsole, type LogLevel } from "@polyseam/cconsole";
+
 import deno_json from "../deno.json" with { type: "json" };
 
 import {
@@ -8,104 +10,204 @@ import {
   getNaturalLanguageScheduleForCronTabExpression,
 } from "./nlp.ts";
 
+const DEFAULT_SCHEDULE_OPTIONS = [
+  { name: "Every minute", value: "* * * * *" },
+  { name: "Every hour", value: "0 * * * *" },
+  { name: "Every day at midnight", value: "0 0 * * *" },
+  { name: "Every 15 minutes", value: "*/15 * * * *" },
+  { name: "Every 30 minutes", value: "*/30 * * * *" },
+  { name: "Every Sunday at 12am", value: "0 0 * * 0" },
+  { name: "First day of every month", value: "0 0 1 * *" },
+];
+
 export const cronx = new Command().name("cronx")
   .description("A crontab expression generator with natural language support.")
   .version(deno_json.version)
+  .arguments("<job>")
   .option("-t, --tab <tab:string>", "The crontab for your workload")
   .option(
     "-n, --natural <description:string>",
     "Natural language description of schedule (e.g., 'every day at 2pm')",
   )
-  .option(
-    "--time-format <format:string>",
-    " 24h or 12h format when outputting natural language schedule",
-    {
-      action: ({ timeFormat }) => {
-        if (!timeFormat) return;
-        if (timeFormat !== "12h" && timeFormat !== "24h") {
-          throw new ValidationError(
-            "Invalid time format. Must be '12h' or '24h'",
-          );
-        }
-      },
+  .option('-l, --label <label:string>', 'A label for the job')
+  .option("-v, --verbosity <level:string>", "Set the log level", {
+    default: "INFO",
+    action: (opt) => {
+      const verbosity = opt.verbosity.toUpperCase();
+      if (!["DEBUG", "INFO", "WARN", "ERROR"].includes(verbosity)) {
+        throw new ValidationError(
+          "Invalid log level, must be one of: 'DEBUG', 'INFO', 'WARN', 'ERROR'",
+        );
+      }
+      return verbosity.toUpperCase();
     },
-  )
-  .arguments("<job>")
+  })
+  .option(`--suppress-stdio`, `Cronix will not reflect job's 'stdout' and 'stderr'`, {
+    default: false,
+  })
+  .option("-y, --yes", "Disable interactivity")
+  .option("-r, --run", "Run the job immediately as well")
   .action(async (options, job) => {
+    console.log(JSON.stringify(options, null, 2));
+    const cconsole = new CConsole(options.verbosity as LogLevel);
     const {
       tab,
-      natural,
     } = options;
+
+    const label = options.label ?? job;
+
+    let naturalInput = options.natural;
+    let naturalOutput;
+
+    const nonInteractive = options.yes;
 
     let cronExpression = tab;
 
-    // If a natural language description is provided, parse it
-    if (natural) {
-      try {
-        cronExpression = getCronTabExpressionForNaturalLanguageSchedule(natural);
-        console.log(
-          `${colors.green("✓")} Parsed natural language: "${
-            colors.cyan(natural)
-          }"`,
-        );
-        console.log(
-          `${colors.green("✓")} Generated cron expression: ${
-            colors.yellow(cronExpression)
-          }`,
-        );
-      } catch (error) {
-        console.error(
-          `${colors.red("✗")} Failed to parse natural language: ${error}`,
-        );
+    if (tab) {
+      naturalOutput = getNaturalLanguageScheduleForCronTabExpression(
+        cronExpression!,
+      );
+      if (naturalOutput instanceof Error) {
+        cconsole.error(naturalOutput.message);
         Deno.exit(1);
       }
-    }
+    } else if (naturalInput) {
+      cronExpression = getCronTabExpressionForNaturalLanguageSchedule(
+        naturalInput,
+      );
 
-    // If no tab or natural language provided, prompt user
-    if (!cronExpression) {
-      const selected = await Select.prompt({
+      if (typeof cronExpression !== "string") {
+        cconsole.error(
+          'failed to generate cron expression from "--natural" input',
+        );
+        cconsole.error(naturalInput);
+        Deno.exit(1);
+      }
+    } else if (!nonInteractive) {
+      const sResponse = await Select.prompt({
         message: `How often do you want to run '${colors.cyan(job)}' ?`,
         options: [
-          { name: "Every minute", value: "* * * * *" },
-          { name: "Every hour", value: "0 * * * *" },
-          { name: "Every day at midnight", value: "0 0 * * *" },
-          { name: "Every 15 minutes", value: "*/15 * * * *" },
-          { name: "Every 30 minutes", value: "*/30 * * * *" },
-          { name: "Every Sunday at 12am", value: "0 0 * * 0" },
-          {
-            name: "First day of every month",
-            value: "0 0 1 * *",
-          },
+          ...DEFAULT_SCHEDULE_OPTIONS,
           { name: "Write your own schedule...", value: "custom" },
         ],
       });
 
-      if (selected === "custom") {
-        cronExpression = await Input.prompt({
+      if (sResponse === "custom") {
+        naturalInput = await Input.prompt({
           message: "Write your schedule in plain language",
           hint: "e.g., 'every day at 2pm'",
         });
+
+        cronExpression = getCronTabExpressionForNaturalLanguageSchedule(
+          naturalInput,
+        );
       } else {
-        cronExpression = selected;
+        cronExpression = sResponse;
+      }
+    } else {
+      cconsole.error(
+        'when using "--yes", you must provide a "--tab" or "--natural" option',
+      );
+      Deno.exit(1);
+    }
+
+    naturalOutput = getNaturalLanguageScheduleForCronTabExpression(
+      cronExpression!,
+    );
+
+    if (naturalOutput instanceof Error) {
+      cconsole.error(naturalOutput.message);
+      Deno.exit(1);
+    }
+
+    if (!nonInteractive) {
+      const go = await Confirm.prompt({
+        message: `Do you want to schedule '${
+          colors.cyan(job)
+        }' to run '${naturalOutput}'?`,
+        hint: cronExpression,
+        default: true,
+      });
+
+      if (!go) {
+        cconsole.debug(colors.red("Aborted."));
+        Deno.exit(0);
       }
     }
 
-    // Process and display the final crontab
-    console.log(
-      `${colors.green("➤")} Crontab for ${colors.cyan(job)}: ${
-        colors.yellow(cronExpression)
-      } ${(colors.magenta(
-        // valid cron expression expected because it was generated by us
-        getNaturalLanguageScheduleForCronTabExpression(
-          cronExpression,
-        ) as string,
-      ))}`,
+    cconsole.info(
+      `Scheduling '${colors.cyan(job)}' to run '${
+        colors.green(naturalOutput)
+      }' (${cronExpression})`,
     );
 
-    console.log();
+    const {suppressStdio} = options;
+    
+    const jobLogger = new JobLogger(label);
 
-    return {
-      job,
-      cronExpression,
-    };
+    if (options.run) {
+      cconsole.debug();
+      cconsole.debug(`Running job: ${job} ${suppressStdio ? 'without': 'with'} stdio`);
+      cconsole.debug();
+      await go(job, {
+        suppressStdio,
+        jobLogger
+      });
+    }
+
+    Deno.cron(label, cronExpression!, async () => {
+      cconsole.debug();
+      cconsole.debug(`Running job: ${job} ${suppressStdio ? 'without': 'with'} stdio`);
+      cconsole.debug();
+      await go(job, { suppressStdio, jobLogger });
+    });
   });
+
+type GoOptions = {
+  suppressStdio: boolean;
+  jobLogger: JobLogger;
+}
+
+class JobLogger {
+  label?: string;
+  constructor(label?: string) {
+    this.label = label;
+  }
+  log(message: string) {
+    const m = this.label ? `${colors.brightBlue(`["${this.label}" stdout]`)} ${message}` : message;
+    console.log(m);
+  }
+  error(message: string) {
+    const m = this.label ? `${colors.red(`["${this.label}" stdout]`)} ${message}` : message;
+    console.error(m);
+  }
+}
+
+async function go(job: string, options: GoOptions) {
+  const { suppressStdio, jobLogger } = options;
+
+  const stdout = suppressStdio ? 'null' : 'piped';
+  const stderr = suppressStdio ? 'null' : 'piped';
+ 
+  const [c, ...args] = job.split(" ");
+
+  const cmd = new Deno.Command(c, {
+    args,
+    stdout,
+    stderr,
+  });
+
+  const output = await cmd.output();
+  const d = new TextDecoder();
+  if(!suppressStdio) {
+    const stdoutTxt = d.decode(output.stdout);
+    const stderrTxt = d.decode(output.stderr);
+
+    if(stdoutTxt) {
+      jobLogger.log(stdoutTxt);
+    }
+    if(stderrTxt) {
+      jobLogger.error(stderrTxt);
+    }
+  }
+}

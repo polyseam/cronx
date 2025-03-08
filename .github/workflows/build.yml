@@ -1,0 +1,35 @@
+name: Build and Release for GitHub
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build:
+    permissions:
+      contents: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: "v2.2.2"
+
+      - uses: actions/checkout@v4
+
+      - uses: polyseam/tag-matches-version@v1
+
+      - run: deno task checks
+
+      - run: deno task test
+
+      - run: deno task build
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        if: startsWith(github.ref, 'refs/tags/')
+        with:
+          generate_release_notes: true
+          files: |
+            dist/release-archives/chronx-*

@@ -1,6 +1,98 @@
 {
-  "version": "1.0.0",
+  "version": "0.1.0",
   "name": "@polyseam/cronx",
+  "tasks": {
+    "run":"deno run --unstable-cron main.ts",
+    "checks": {
+      "command": "deno lint && deno check . && deno fmt --check"
+    },
+
+    "archive-all": {
+      "dependencies": [
+        "archive-win-amd64",
+        "archive-linux-amd64",
+        "archive-linux-arm64",
+        "archive-mac-amd64",
+        "archive-mac-arm64"
+      ]
+    },
+
+    "archive-win-amd64": "tar -czvf dist/release-archives/cronx-win-amd64.tar.gz -C dist/win-amd64/in .",
+    "archive-linux-amd64": "tar -czvf dist/release-archives/cronx-linux-amd64.tar.gz -C dist/linux-amd64/in .",
+    "archive-linux-arm64": "tar -czvf dist/release-archives/cronx-linux-arm64.tar.gz -C dist/linux-arm64/in .",
+    "archive-mac-amd64": "tar -czvf dist/release-archives/cronx-mac-amd64.tar.gz -C dist/mac-amd64/in .",
+    "archive-mac-arm64": "tar -czvf dist/release-archives/cronx-mac-arm64.tar.gz -C dist/mac-arm64/in .",
+
+    "compile-all": {
+      "dependencies": [
+        "compile-win-amd64",
+        "compile-linux-amd64",
+        "compile-linux-arm64",
+        "compile-mac-amd64",
+        "compile-mac-arm64"
+      ]
+    },
+
+    "compile-win-amd64": "deno compile --unstable-cron --target x86_64-pc-windows-msvc --output dist/win-amd64/in/cronx.exe main.ts",
+    "compile-linux-arm64": "deno compile --unstable-cron --target aarch64-unknown-linux-gnu --output dist/linux-arm64/in/cronx main.ts",
+    "compile-linux-amd64": "deno compile ---unstable-cron --target x86_64-unknown-linux-gnu --output dist/linux-amd64/in/cronx main.ts",
+    "compile-mac-arm64": "deno compile --unstable-cron --target aarch64-apple-darwin --output dist/mac-arm64/in/cronx main.ts",
+    "compile-mac-amd64": "deno compile --unstable-cron --target x86_64-apple-darwin --output dist/mac-amd64/in/cronx main.ts",
+
+    "clean-dist": {
+      "dependencies": [
+        "clean-mac-arm64",
+        "clean-mac-amd64",
+        "clean-win-amd64",
+        "clean-linux-amd64",
+        "clean-linux-arm64"
+      ]
+    },
+
+    "clean-mac-amd64": "rm dist/mac-amd64/in/cronx || true && rm dist/release-archives/cronx-mac-amd64.tar.gz || true",
+    "clean-mac-arm64": "rm dist/mac-arm64/in/cronx || true && rm dist/release-archives/cronx-mac-arm64.tar.gz || true",
+    "clean-win-amd64": "rm dist/win-amd64/in/cronx.exe || true && rm dist/release-archives/cronx-win-amd64.tar.gz || true",
+    "clean-linux-amd64": "rm dist/linux-amd64/in/cronx || true && rm dist/release-archives/cronx-linux-amd64.tar.gz || true",
+    "clean-linux-arm64": "rm dist/linux-arm64/in/cronx || true && rm dist/release-archives/cronx-linux-arm64.tar.gz || true",
+
+    "build": {
+      "dependencies": ["clean-dist", "compile-all", "archive-all"]
+    },
+
+    "build-linux-amd64": {
+      "dependencies": ["clean-linux-amd64", "compile-linux-amd64"]
+    },
+
+    "build-linux-arm64": {
+      "dependencies": ["clean-linux-arm64", "compile-linux-arm64"]
+    },
+
+    "build-mac-amd64": {
+      "dependencies": ["clean-mac-amd64", "compile-mac-amd64"]
+    },
+
+    "build-mac-arm64": {
+      "dependencies": ["clean-mac-arm64", "compile-mac-arm64"]
+    },
+
+    "build-win-amd64": {
+      "dependencies": ["clean-win-amd64", "compile-win-amd64"]
+    },
+
+    "test": {
+      "command": "deno test --allow-all --parallel --fail-fast --no-check"
+    },
+
+    "test-slow": "deno test --allow-all --parallel",
+    "test-watch": "deno test --allow-all --watch",
+
+    "fix": {
+      "dependencies": ["fmt", "lint-fix"]
+    },
+
+    "fmt": "deno fmt",
+    "lint-fix": "deno lint --fix"
+  },
   "imports": {
     "@cliffy/ansi": "jsr:@cliffy/ansi@1.0.0-rc.7",
     "@cliffy/command": "jsr:@cliffy/command@1.0.0-rc.7",
@@ -9,5 +101,8 @@
     "@std/assert": "jsr:@std/assert@1",
     "@std/testing": "jsr:@std/testing@^1.0.9",
     "src/": "./src/"
+  },
+  "exports": {
+    "./nlp": "./src/nlp.ts"
   }
 }

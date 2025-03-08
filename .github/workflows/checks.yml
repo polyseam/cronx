@@ -1,0 +1,21 @@
+name: Checks, Tests, Builds
+on:
+  pull_request:
+    branches:
+      - main
+  push:
+    branches:
+      - main
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.2.2
+
+      - run: deno task checks
+
+      - run: deno task test
