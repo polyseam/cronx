@@ -2,7 +2,7 @@
   "version": "0.1.0",
   "name": "@polyseam/cronx",
   "tasks": {
-    "run":"deno run --unstable-cron main.ts",
+    "run": "deno run --unstable-cron main.ts",
     "checks": {
       "command": "deno lint && deno check . && deno fmt --check"
     },

@@ -3,7 +3,7 @@
 **chronix or /ˈkrɒnɪks/**_
 
 a typescript library and cli for using cron on any platform powered by
-[Deno.cron]()
+[Deno.cron](https://docs.deno.com/examples/cron/)
 
 ## cli
 

@@ -29,7 +29,7 @@ export const cronx = new Command().name("cronx")
     "-n, --natural <description:string>",
     "Natural language description of schedule (e.g., 'every day at 2pm')",
   )
-  .option('-l, --label <label:string>', 'A label for the job')
+  .option("-l, --label <label:string>", "A label for the job")
   .option("-v, --verbosity <level:string>", "Set the log level", {
     default: "INFO",
     action: (opt) => {
@@ -42,9 +42,13 @@ export const cronx = new Command().name("cronx")
       return verbosity.toUpperCase();
     },
   })
-  .option(`--suppress-stdio`, `Cronix will not reflect job's 'stdout' and 'stderr'`, {
-    default: false,
-  })
+  .option(
+    `--suppress-stdio`,
+    `Cronix will not reflect job's 'stdout' and 'stderr'`,
+    {
+      default: false,
+    },
+  )
   .option("-y, --yes", "Disable interactivity")
   .option("-r, --run", "Run the job immediately as well")
   .action(async (options, job) => {
@@ -141,23 +145,27 @@ export const cronx = new Command().name("cronx")
       }' (${cronExpression})`,
     );
 
-    const {suppressStdio} = options;
-    
+    const { suppressStdio } = options;
+
     const jobLogger = new JobLogger(label);
 
     if (options.run) {
       cconsole.debug();
-      cconsole.debug(`Running job: ${job} ${suppressStdio ? 'without': 'with'} stdio`);
+      cconsole.debug(
+        `Running job: ${job} ${suppressStdio ? "without" : "with"} stdio`,
+      );
       cconsole.debug();
       await go(job, {
         suppressStdio,
-        jobLogger
+        jobLogger,
       });
     }
 
     Deno.cron(label, cronExpression!, async () => {
       cconsole.debug();
-      cconsole.debug(`Running job: ${job} ${suppressStdio ? 'without': 'with'} stdio`);
+      cconsole.debug(
+        `Running job: ${job} ${suppressStdio ? "without" : "with"} stdio`,
+      );
       cconsole.debug();
       await go(job, { suppressStdio, jobLogger });
     });
@@ -166,7 +174,7 @@ export const cronx = new Command().name("cronx")
 type GoOptions = {
   suppressStdio: boolean;
   jobLogger: JobLogger;
-}
+};
 
 class JobLogger {
   label?: string;
@@ -174,11 +182,15 @@ class JobLogger {
     this.label = label;
   }
   log(message: string) {
-    const m = this.label ? `${colors.brightBlue(`["${this.label}" stdout]`)} ${message}` : message;
+    const m = this.label
+      ? `${colors.brightBlue(`["${this.label}" stdout]`)} ${message}`
+      : message;
     console.log(m);
   }
   error(message: string) {
-    const m = this.label ? `${colors.red(`["${this.label}" stdout]`)} ${message}` : message;
+    const m = this.label
+      ? `${colors.red(`["${this.label}" stdout]`)} ${message}`
+      : message;
     console.error(m);
   }
 }
@@ -186,9 +198,9 @@ class JobLogger {
 async function go(job: string, options: GoOptions) {
   const { suppressStdio, jobLogger } = options;
 
-  const stdout = suppressStdio ? 'null' : 'piped';
-  const stderr = suppressStdio ? 'null' : 'piped';
- 
+  const stdout = suppressStdio ? "null" : "piped";
+  const stderr = suppressStdio ? "null" : "piped";
+
   const [c, ...args] = job.split(" ");
 
   const cmd = new Deno.Command(c, {
@@ -199,14 +211,14 @@ async function go(job: string, options: GoOptions) {
 
   const output = await cmd.output();
   const d = new TextDecoder();
-  if(!suppressStdio) {
+  if (!suppressStdio) {
     const stdoutTxt = d.decode(output.stdout);
     const stderrTxt = d.decode(output.stderr);
 
-    if(stdoutTxt) {
+    if (stdoutTxt) {
       jobLogger.log(stdoutTxt);
     }
-    if(stderrTxt) {
+    if (stderrTxt) {
       jobLogger.error(stderrTxt);
     }
   }
