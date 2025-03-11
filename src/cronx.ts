@@ -52,7 +52,6 @@ export const cronx = new Command().name("cronx")
   .option("-y, --yes", "Disable interactivity")
   .option("-r, --run", "Run the job immediately as well")
   .action(async (options, job) => {
-    console.log(JSON.stringify(options, null, 2));
     const cconsole = new CConsole(options.verbosity as LogLevel);
     const {
       tab,
