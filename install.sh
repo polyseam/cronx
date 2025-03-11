@@ -42,8 +42,6 @@ main() {
     tar -xzf "$exe.tar.gz" -C "$bin_dir"
     
     chmod +x "$exe"
-    chmod +x "$bin_dir/kubeseal-cronx"
-    chmod +x "$bin_dir/terraform-cronx"
     
     rm "$exe.tar.gz"
     
