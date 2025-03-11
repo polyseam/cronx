@@ -104,6 +104,24 @@ function parseComplexPattern(input: string): string {
     return `0 ${hour} 1 * *`;
   }
 
+  const yearlyMatch = input.match(
+    /^every year at (\d{1,2})(?::(\d{2}))?\s?(am|pm)?$/i,
+  );
+  if (yearlyMatch) {
+    let [_, __, ___, period] = yearlyMatch;
+
+    let hour = parseInt(yearlyMatch[1], 10);
+    const minute = parseInt(yearlyMatch[2] ?? 0, 10);
+
+    if (period) {
+      period = period.toLowerCase();
+      if (period === "pm" && hour < 12) hour += 12;
+      if (period === "am" && hour === 12) hour = 0;
+    }
+
+    return `${minute} ${hour} 1 1 *`;
+  }
+
   // Time specifications
   if (input.includes("at")) {
     // Extract times (e.g., 2pm, 3:30am)
