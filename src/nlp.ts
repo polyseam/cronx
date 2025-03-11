@@ -1,6 +1,22 @@
 export type CronTabExpression = string;
 export type NaturalLanguageSchedule = string;
 
+// Handle specific months
+const MONTHS = {
+  january: 1,
+  february: 2,
+  march: 3,
+  april: 4,
+  may: 5,
+  june: 6,
+  july: 7,
+  august: 8,
+  september: 9,
+  october: 10,
+  november: 11,
+  december: 12,
+};
+
 // Natural language to crontab
 export function getCronTabExpressionForNaturalLanguageSchedule(
   input: NaturalLanguageSchedule,
@@ -64,19 +80,19 @@ function parseComplexPattern(input: string): string {
   let dayOfWeek = "*";
 
   // Parse interval patterns
-  const minuteInterval = input.match(/every (\d+) minute/);
-  if (minuteInterval) {
-    return `*/${minuteInterval[1]} * * * *`;
+  const simpleMinuteInterval = input.match(/every (\d+) minutes\s*$/);
+  if (simpleMinuteInterval) {
+    return `*/${simpleMinuteInterval[1]} * * * *`;
   }
 
-  const hourInterval = input.match(/every (\d+) hour/);
-  if (hourInterval) {
-    return `0 */${hourInterval[1]} * * *`;
+  const simpleHourInterval = input.match(/every (\d+) hours\s*$/);
+  if (simpleHourInterval) {
+    return `0 */${simpleHourInterval[1]} * * *`;
   }
 
-  const dayInterval = input.match(/every (\d+) day/);
-  if (dayInterval) {
-    return `0 0 */${dayInterval[1]} * *`;
+  const simpleDayInterval = input.match(/every (\d+) days\s*$/);
+  if (simpleDayInterval) {
+    return `0 0 */${simpleDayInterval[1]} * *`;
   }
 
   // monthly with minutes and hours
@@ -119,6 +135,17 @@ function parseComplexPattern(input: string): string {
     }
 
     return `${minute} ${hour} 1 1 *`;
+  }
+
+  // Handle specific months (defaults to first day of the month at midnight)
+  const monthMatch = input.match(
+    /^every ((?:January|February|March|April|May|June|July|August|September|October|November|December)(?:,\s?(?:January|February|March|April|May|June|July|August|September|October|November|December))*)$/i,
+  );
+  if (monthMatch) {
+    const months = monthMatch[1].split(/,\s?/).map((
+      month,
+    ) => (MONTHS[month.toLowerCase() as keyof typeof MONTHS]));
+    return `0 0 1 ${months.join(",")} *`;
   }
 
   // Time specifications
@@ -214,24 +241,8 @@ function parseComplexPattern(input: string): string {
     }
   }
 
-  // Handle specific months
-  const months = {
-    january: 1,
-    february: 2,
-    march: 3,
-    april: 4,
-    may: 5,
-    june: 6,
-    july: 7,
-    august: 8,
-    september: 9,
-    october: 10,
-    november: 11,
-    december: 12,
-  };
-
   const monthList: number[] = [];
-  for (const [monthName, value] of Object.entries(months)) {
+  for (const [monthName, value] of Object.entries(MONTHS)) {
     if (input.includes(monthName)) {
       monthList.push(value);
 
@@ -326,6 +337,7 @@ export function getNaturalLanguageScheduleForCronTabExpression(
 
   // Time part
   if (minute !== "*") {
+    // Handle interval with time ranges
     const minuteNum = parseInt(minute, 10);
 
     if (hour !== "*") {
