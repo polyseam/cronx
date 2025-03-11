@@ -33,5 +33,5 @@ jobs:
           generate_release_notes: true
           files: |
             dist/release-archives/chronx-*
-      
+
       - run: deno publish
