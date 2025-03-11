@@ -2,6 +2,7 @@ import { Command, ValidationError } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { colors } from "@cliffy/ansi/colors";
 import { CConsole, type LogLevel } from "@polyseam/cconsole";
+import { convertCronToUTC, convertZeroBasedDaysToOneBased } from "./cron.ts";
 
 import deno_json from "../deno.json" with { type: "json" };
 
@@ -29,6 +30,9 @@ export const cronx = new Command().name("cronx")
     "-n, --natural <description:string>",
     "Natural language description of schedule (e.g., 'every day at 2pm')",
   )
+  .option("--offset <hours:number>", "The timezone offset in hours", {
+    default: new Date().getTimezoneOffset() / -60,
+  })
   .option("-l, --label <label:string>", "A label for the job")
   .option("-v, --verbosity <level:string>", "Set the log level", {
     default: "INFO",
@@ -55,6 +59,7 @@ export const cronx = new Command().name("cronx")
     const cconsole = new CConsole(options.verbosity as LogLevel);
     const {
       tab,
+      offset,
     } = options;
 
     function validateJobLabel(label: string): boolean {
@@ -159,7 +164,7 @@ export const cronx = new Command().name("cronx")
     cconsole.info(
       `Scheduling '${colors.cyan(job)}' to run '${
         colors.green(naturalOutput)
-      }' (${cronExpression})`,
+      }'(${cronExpression})`,
     );
 
     const { suppressStdio } = options;
@@ -178,9 +183,11 @@ export const cronx = new Command().name("cronx")
       });
     }
 
-    // Invalid cron name: only alphanumeric characters, whitespace, hyphens, and underscores are allowed
+    const localizedTab = convertCronToUTC(cronExpression!, offset);
 
-    Deno.cron(label, cronExpression!, async () => {
+    const finalTab = convertZeroBasedDaysToOneBased(localizedTab);
+
+    Deno.cron(label, finalTab, async () => {
       cconsole.debug();
       cconsole.debug(
         `Running job: ${job} ${suppressStdio ? "without" : "with"} stdio`,
