@@ -373,21 +373,19 @@ Deno.test("Monthly and yearly patterns", async (t) => {
       "0 0 1 1 *",
     );
 
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "yearly at 5pm",
-    //   ),
-    //   "0 17 1 1 *",
-    // );
-
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "annually at 9:15am",
-    //   ),
-    //   "15 9 1 1 *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "yearly at 5pm",
+      ),
+      "0 17 1 1 *",
+    );
+    
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "annually at 9:15am",
+      ),
+      "15 9 1 1 *",
+    );
     assertEquals(
       getCronTabExpressionForNaturalLanguageSchedule(
         "every January 1st at 12pm",
