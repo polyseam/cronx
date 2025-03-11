@@ -105,6 +105,5 @@
   },
   "exports": {
     "./nlp": "./src/nlp.ts"
-  },
-  "exclude": ["dist"]
+  }
 }
