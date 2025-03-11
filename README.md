@@ -9,6 +9,10 @@ a typescript library and cli for using cron on any platform powered by
 
 ### usage
 
+> [!WARNING]
+> cronx uses 0-based indexing for days of the week, where 0 is Sunday and 6 is
+> Saturday, unlike the 1-based indexing used by Deno.cron()
+
 ```bash
 cronx 'echo hello world from the future' -n "every tuesday at 3pm"
 # ? Do you want to schedule 'echo hello world from the future' to run 'At 3:00 PM on Tuesday'? (Y/n) › 
