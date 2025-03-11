@@ -79,6 +79,19 @@ function parseComplexPattern(input: string): string {
     return `0 0 */${dayInterval[1]} * *`;
   }
 
+  // monthly with minutes and hours
+  if (/^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i.test(input)) {
+    const matches = input.match(/^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i);
+    if (!matches) throw new Error("Invalid schedule format");
+    let hour = parseInt(matches[2], 10);
+    const minute = parseInt(matches[3], 10);
+    const period = matches[4].toLowerCase();
+    if (period === "pm" && hour < 12) hour += 12;
+    if (hour === 12 && period === "am") hour = 0;
+    return `${minute} ${hour} 1 * *`;
+  }
+
+  // monthly with hours
   if (/^(every month|monthly) at (\d{1,2})(am|pm)$/i.test(input)) {
     const matches = input.match(/^(every month|monthly) at (\d{1,2})(am|pm)$/i);
     if (!matches) throw new Error("Invalid schedule format");
