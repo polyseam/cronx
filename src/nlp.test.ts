@@ -316,21 +316,19 @@ Deno.test("Monthly and yearly patterns", async (t) => {
   });
 
   await t.step("monthly patterns with times", () => {
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "every month at 3pm",
-    //   ),
-    //   "0 15 1 * *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "every month at 3pm",
+      ),
+      "0 15 1 * *",
+    );
 
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "monthly at 7:45am",
-    //   ),
-    //   "45 7 1 * *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "monthly at 7:45am",
+      ),
+      "45 7 1 * *",
+    );
 
     assertEquals(
       getCronTabExpressionForNaturalLanguageSchedule(
@@ -343,6 +341,12 @@ Deno.test("Monthly and yearly patterns", async (t) => {
         "every 15th of the month at 2:30pm",
       ),
       "30 14 15 * *",
+    );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "every saturday at 8pm",
+      ),
+      "0 20 * * 6",
     );
   });
 
@@ -368,29 +372,26 @@ Deno.test("Monthly and yearly patterns", async (t) => {
   });
 
   await t.step("yearly patterns with times", () => {
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "every year at 12am",
-    //   ),
-    //   "0 0 1 1 *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "every year at 12am",
+      ),
+      "0 0 1 1 *",
+    );
 
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "yearly at 5pm",
-    //   ),
-    //   "0 17 1 1 *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "yearly at 5pm",
+      ),
+      "0 17 1 1 *",
+    );
 
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "annually at 9:15am",
-    //   ),
-    //   "15 9 1 1 *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "annually at 9:15am",
+      ),
+      "15 9 1 1 *",
+    );
     assertEquals(
       getCronTabExpressionForNaturalLanguageSchedule(
         "every January 1st at 12pm",
@@ -400,29 +401,26 @@ Deno.test("Monthly and yearly patterns", async (t) => {
   });
 
   await t.step("specific months", () => {
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "every January",
-    //   ),
-    //   "0 0 1 1 *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "every january",
+      ),
+      "0 0 1 1 *",
+    );
 
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "every December",
-    //   ),
-    //   "0 0 1 12 *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "every December",
+      ),
+      "0 0 1 12 *",
+    );
 
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "every January, April, July, October",
-    //   ),
-    //   "0 0 1 1,4,7,10 *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "every January, April, July, October",
+      ),
+      "0 0 1 1,4,7,10 *",
+    );
   });
 });
 
@@ -483,13 +481,13 @@ Deno.test("Complex patterns with multiple components", async (t) => {
       "0 9-17 * * *",
     );
 
-    // TODO: fix this test
-    // assertEquals(
-    //   getCronTabExpressionForNaturalLanguageSchedule(
-    //     "every 30 minutes from 9am to 5pm",
-    //   ),
-    //   "*/30 9-17 * * *",
-    // );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "every 30 minutes from 9am to 5pm",
+      ),
+      "*/30 9-17 * * *",
+    );
+
     assertEquals(
       getCronTabExpressionForNaturalLanguageSchedule(
         "every weekday every hour from 9am to 5pm",
