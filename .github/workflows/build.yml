@@ -34,5 +34,7 @@ jobs:
           files: |
             dist/release-archives/chronx-*
 
+      - run: deno task clean-dist
+
       - name: Release Library
         run: deno publish
