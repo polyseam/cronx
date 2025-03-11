@@ -1,2 +1,2 @@
-dist/*/in/cronx
+dist/*/in/cronx*
 dist/*/release-archives/*tar.gz
