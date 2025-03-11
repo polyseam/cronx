@@ -57,6 +57,24 @@ export const cronx = new Command().name("cronx")
       tab,
     } = options;
 
+    function validateJobLabel(label: string): boolean {
+      return (/^[a-zA-Z0-9\s\-_]+$/.test(label));
+    }
+
+    if (options.label) {
+      if (!validateJobLabel(options.label)) {
+        cconsole.error(
+          'cronx: invalid "label": only alphanumeric characters, whitespace, hyphens, and underscores are allowed',
+        );
+        Deno.exit(1);
+      }
+    } else if (!validateJobLabel(job)) {
+      cconsole.error(
+        'cronx: unable to generate a valid "label" from your <job> argument, please provide one using the "--label" option',
+      );
+      Deno.exit(1);
+    }
+
     const label = options.label ?? job;
 
     let naturalInput = options.natural;
@@ -160,6 +178,8 @@ export const cronx = new Command().name("cronx")
       });
     }
 
+    // Invalid cron name: only alphanumeric characters, whitespace, hyphens, and underscores are allowed
+
     Deno.cron(label, cronExpression!, async () => {
       cconsole.debug();
       cconsole.debug(
@@ -188,7 +208,7 @@ class JobLogger {
   }
   error(message: string) {
     const m = this.label
-      ? `${colors.red(`["${this.label}" stdout]`)} ${message}`
+      ? `${colors.red(`["${this.label}" stderr]`)} ${message}`
       : message;
     console.error(m);
   }
