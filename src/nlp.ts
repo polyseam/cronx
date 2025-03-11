@@ -105,13 +105,12 @@ function parseComplexPattern(input: string): string {
   }
 
   const yearlyMatch = input.match(
-    /^every year at (\d{1,2})(?::(\d{2}))?\s?(am|pm)?$/i,
+    /^(every year|yearly|annually) at (\d{1,2})(?::(\d{2}))?\s?(am|pm)?$/i,
   );
   if (yearlyMatch) {
-    let [_, __, ___, period] = yearlyMatch;
-
-    let hour = parseInt(yearlyMatch[1], 10);
-    const minute = parseInt(yearlyMatch[2] ?? 0, 10);
+    let period = yearlyMatch[4]?.toLowerCase();
+    let hour = parseInt(yearlyMatch[2], 10);
+    const minute = parseInt(yearlyMatch[3] ?? "0", 10);
 
     if (period) {
       period = period.toLowerCase();
