@@ -6,7 +6,8 @@
     "checks": {
       "command": "deno lint && deno check . && deno fmt --check"
     },
-
+    "description": "Cross-Platform CLI and Library for working with Cron Jobs",
+    "license": "Apache-2.0",
     "archive-all": {
       "dependencies": [
         "archive-win-amd64",
