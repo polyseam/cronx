@@ -1,3 +1,4 @@
 dist/*/in/cronx*
 dist/release-archives/*
 !dist/release-archives/.preserve
+.DS_Store
