@@ -24,7 +24,7 @@ export const cronx = new Command().name("cronx")
   .description("A crontab expression generator with natural language support.")
   .version(deno_json.version)
   .arguments("<job>")
-  .option("--welcome", "Print welcome message", {
+  .option("--welcome", "Called by install scripts", {
     hidden: true,
     action: () => {},
   })
