@@ -1,6 +1,26 @@
 export type CronTabExpression = string;
 export type NaturalLanguageSchedule = string;
 
+// Time-related type definitions
+export type TimeFormat = "12h" | "24h";
+export interface TimeObject {
+  hour: number;
+  minute: number;
+  period?: "am" | "pm";
+}
+
+// Constants
+// Days of the week mapping
+const DAYS_OF_WEEK = {
+  sunday: 0,
+  monday: 1,
+  tuesday: 2,
+  wednesday: 3,
+  thursday: 4,
+  friday: 5,
+  saturday: 6,
+};
+
 // Handle specific months
 const MONTHS = {
   january: 1,
@@ -17,6 +37,338 @@ const MONTHS = {
   december: 12,
 };
 
+// Time utilities
+const TimeUtils = {
+  /**
+   * Converts 12-hour format to 24-hour format
+   * @param hour Hour in 12-hour format
+   * @param period 'am' or 'pm'
+   * @returns Hour in 24-hour format
+   */
+  convertTo24Hour(hour: number, period: string): number {
+    period = period.toLowerCase();
+    if (period === "pm" && hour < 12) return hour + 12;
+    if (period === "am" && hour === 12) return 0;
+    return hour;
+  },
+
+  /**
+   * Formats hour and minute into a readable time string (e.g., "3:00 PM")
+   * @param hour Hour in 24-hour format
+   * @param minute Minute
+   * @returns Formatted time string
+   */
+  formatTime(hour: number, minute: number): string {
+    const hour12 = hour === 0 ? 12 : hour > 12 ? hour - 12 : hour;
+    const period = hour < 12 ? "AM" : "PM";
+    return `${hour12}:${minute.toString().padStart(2, "0")} ${period}`;
+  },
+};
+
+// Pattern Matchers for different types of natural language expressions
+const PatternMatchers = {
+  /**
+   * Matches basic time-based patterns (minute, hour, day, week, month, year)
+   * @param input Normalized input string
+   * @returns Matching cron expression or null if no match
+   */
+  matchBasicPatterns(input: string): string | null {
+    if (
+      input === "every minute" ||
+      input === "every 1 minute" || input === "minutely"
+    ) {
+      return "* * * * *";
+    }
+
+    if (
+      input === "every hour" || input === "every 1 hour" ||
+      input === "hourly"
+    ) {
+      return "0 * * * *";
+    }
+
+    if (
+      input === "every day" || input === "every 1 day" ||
+      input === "daily"
+    ) {
+      return "0 0 * * *";
+    }
+
+    if (
+      input === "every week" || input === "every 1 week" ||
+      input === "weekly"
+    ) {
+      return "0 0 * * 0";
+    }
+
+    if (
+      input === "every month" || input === "every 1 month" ||
+      input === "monthly"
+    ) {
+      return "0 0 1 * *";
+    }
+
+    if (
+      input === "every year" || input === "every 1 year" ||
+      input === "yearly" || input === "annually"
+    ) {
+      return "0 0 1 1 *";
+    }
+
+    return null;
+  },
+
+  /**
+   * Matches interval-based patterns (every X minutes/hours/days)
+   * @param input Normalized input string
+   * @returns Matching cron expression or null if no match
+   */
+  matchIntervalPatterns(input: string): string | null {
+    const simpleMinuteInterval = input.match(/every (\d+) minutes\s*$/);
+    if (simpleMinuteInterval) {
+      return `*/${simpleMinuteInterval[1]} * * * *`;
+    }
+
+    const simpleHourInterval = input.match(/every (\d+) hours\s*$/);
+    if (simpleHourInterval) {
+      return `0 */${simpleHourInterval[1]} * * *`;
+    }
+
+    const simpleDayInterval = input.match(/every (\d+) days\s*$/);
+    if (simpleDayInterval) {
+      return `0 0 */${simpleDayInterval[1]} * *`;
+    }
+
+    return null;
+  },
+
+  /**
+   * Matches monthly patterns with optional time specifications
+   * @param input Normalized input string
+   * @returns Matching cron expression or null if no match
+   */
+  matchMonthlyPatterns(input: string): string | null {
+    // monthly with minutes and hours
+    if (/^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i.test(input)) {
+      const matches = input.match(
+        /^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i,
+      );
+      if (!matches) return null;
+      let hour = parseInt(matches[2], 10);
+      const minute = parseInt(matches[3], 10);
+      const period = matches[4].toLowerCase();
+      hour = TimeUtils.convertTo24Hour(hour, period);
+      return `${minute} ${hour} 1 * *`;
+    }
+
+    // monthly with hours
+    if (/^(every month|monthly) at (\d{1,2})(am|pm)$/i.test(input)) {
+      const matches = input.match(
+        /^(every month|monthly) at (\d{1,2})(am|pm)$/i,
+      );
+      if (!matches) return null;
+      let hour = parseInt(matches[2], 10);
+      const period = matches[3].toLowerCase();
+      hour = TimeUtils.convertTo24Hour(hour, period);
+      return `0 ${hour} 1 * *`;
+    }
+
+    return null;
+  },
+
+  /**
+   * Matches yearly patterns with optional time specifications
+   * @param input Normalized input string
+   * @returns Matching cron expression or null if no match
+   */
+  matchYearlyPatterns(input: string): string | null {
+    const yearlyMatch = input.match(
+      /^(every year|yearly|annually) at (\d{1,2})(?::(\d{2}))?\s?(am|pm)?$/i,
+    );
+    if (yearlyMatch) {
+      let period = yearlyMatch[4]?.toLowerCase();
+      let hour = parseInt(yearlyMatch[2], 10);
+      const minute = parseInt(yearlyMatch[3] ?? "0", 10);
+
+      if (period) {
+        hour = TimeUtils.convertTo24Hour(hour, period);
+      }
+
+      return `${minute} ${hour} 1 1 *`;
+    }
+
+    return null;
+  },
+
+  /**
+   * Matches time range patterns (from X to Y)
+   * @param input Normalized input string
+   * @returns Partial cron expression components or null if no match
+   */
+  matchTimeRangePatterns(
+    input: string,
+  ): { minute: string; hour: string } | null {
+    if (input.includes("from") && input.includes("to")) {
+      const rangeMatch = input.match(
+        /from (\d+)(?::(\d+))?\s*(am|pm) to (\d+)(?::(\d+))?\s*(am|pm)/i,
+      );
+      if (rangeMatch) {
+        let startHour = parseInt(rangeMatch[1], 10);
+        let endHour = parseInt(rangeMatch[4], 10);
+        const startPeriod = rangeMatch[3].toLowerCase();
+        const endPeriod = rangeMatch[6].toLowerCase();
+
+        startHour = TimeUtils.convertTo24Hour(startHour, startPeriod);
+        endHour = TimeUtils.convertTo24Hour(endHour, endPeriod);
+
+        let hour = `${startHour}-${endHour}`;
+        let minute = "0";
+
+        // Check if there's an interval within the range
+        if (input.includes("every 30 minutes")) {
+          minute = "*/30";
+        } else if (input.includes("every 15 minutes")) {
+          minute = "*/15";
+        } else if (input.includes("every hour")) {
+          minute = "0";
+        }
+
+        return { minute, hour };
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Matches day of week patterns (weekday, weekend, specific days)
+   * @param input Normalized input string
+   * @returns Day of week cron component or null if no match
+   */
+  matchDayOfWeekPatterns(input: string): string | null {
+    if (input.includes("weekday")) {
+      return "1-5";
+    } else if (input.includes("weekend")) {
+      return "0,6";
+    } else {
+      const days: number[] = [];
+      for (const [day, value] of Object.entries(DAYS_OF_WEEK)) {
+        if (input.includes(day)) {
+          days.push(value);
+        }
+      }
+
+      if (days.length > 0) {
+        return days.sort().join(",");
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Matches day of month patterns (e.g., 5th of the month)
+   * @param input Normalized input string
+   * @returns Day of month cron component or null if no match
+   */
+  matchDayOfMonthPatterns(input: string): string | null {
+    if (input.includes("of the month")) {
+      const dayMatch = input.match(/(\d+)(st|nd|rd|th) of the month/);
+      if (dayMatch) {
+        return dayMatch[1];
+      }
+    }
+    return null;
+  },
+
+  /**
+   * Matches patterns with specific months and optionally days within those months
+   * @param input Normalized input string
+   * @returns Object with month and day components or null if no match
+   */
+  matchSpecificMonthPatterns(
+    input: string,
+  ): { month: string; dayOfMonth?: string } | null {
+    // Handle specific months (defaults to first day of the month at midnight)
+    const monthMatch = input.match(
+      /^every ((?:January|February|March|April|May|June|July|August|September|October|November|December)(?:,\s?(?:January|February|March|April|May|June|July|August|September|October|November|December))*)$/i,
+    );
+
+    if (monthMatch) {
+      const months = monthMatch[1].split(/,\s?/).map(
+        (month) => (MONTHS[month.toLowerCase() as keyof typeof MONTHS]),
+      );
+      return { month: months.join(","), dayOfMonth: "1" };
+    }
+
+    // Check for individual months mentioned in the input
+    const monthList: number[] = [];
+    let dayOfMonth: string | undefined = undefined;
+
+    for (const [monthName, value] of Object.entries(MONTHS)) {
+      if (input.includes(monthName)) {
+        monthList.push(value);
+
+        // Check for specific day in month
+        const dayMatch = new RegExp(`${monthName} (\\d+)(st|nd|rd|th)`).exec(
+          input,
+        );
+        if (dayMatch) {
+          dayOfMonth = dayMatch[1];
+        }
+      }
+    }
+
+    if (monthList.length > 0) {
+      const month = monthList.length === 1
+        ? monthList[0].toString()
+        : monthList.sort().join(",");
+
+      return { month, dayOfMonth };
+    }
+
+    return null;
+  },
+
+  /**
+   * Matches time specifications with the "at" keyword
+   * @param input Normalized input string
+   * @returns Object with hour and minute components or null if no match
+   */
+  matchTimeWithAtPatterns(
+    input: string,
+  ): { hour: string; minute: string } | null {
+    if (input.includes("at")) {
+      // Extract times (e.g., 2pm, 3:30am)
+      const timeRegex = /(\d+)(?::(\d+))?\s*(am|pm)/gi;
+      const times: { hour: number; minute: number }[] = [];
+      let match;
+
+      while ((match = timeRegex.exec(input)) !== null) {
+        let hour = parseInt(match[1], 10);
+        const minute = match[2] ? parseInt(match[2], 10) : 0;
+        const period = match[3].toLowerCase();
+
+        hour = TimeUtils.convertTo24Hour(hour, period);
+
+        times.push({ hour, minute });
+      }
+
+      if (times.length === 1) {
+        return {
+          minute: times[0].minute.toString(),
+          hour: times[0].hour.toString(),
+        };
+      } else if (times.length > 1) {
+        // Only supporting same minute for multiple hours
+        return {
+          minute: times[0].minute.toString(),
+          hour: times.map((t) => t.hour).join(","),
+        };
+      }
+    }
+    return null;
+  },
+};
+
 // Natural language to crontab
 export function getCronTabExpressionForNaturalLanguageSchedule(
   input: NaturalLanguageSchedule,
@@ -24,47 +376,30 @@ export function getCronTabExpressionForNaturalLanguageSchedule(
   // Normalize input
   const normalizedInput = input.toLowerCase().trim().replace(/\s+/g, " ");
 
-  // Basic patterns
-  if (
-    normalizedInput === "every minute" ||
-    normalizedInput === "every 1 minute" || normalizedInput === "minutely"
-  ) {
-    return "* * * * *";
+  // Try matching basic patterns
+  const basicPattern = PatternMatchers.matchBasicPatterns(normalizedInput);
+  if (basicPattern) {
+    return basicPattern;
   }
 
-  if (
-    normalizedInput === "every hour" || normalizedInput === "every 1 hour" ||
-    normalizedInput === "hourly"
-  ) {
-    return "0 * * * *";
+  // Try matching interval patterns
+  const intervalPattern = PatternMatchers.matchIntervalPatterns(
+    normalizedInput,
+  );
+  if (intervalPattern) {
+    return intervalPattern;
   }
 
-  if (
-    normalizedInput === "every day" || normalizedInput === "every 1 day" ||
-    normalizedInput === "daily"
-  ) {
-    return "0 0 * * *";
+  // Try matching monthly patterns
+  const monthlyPattern = PatternMatchers.matchMonthlyPatterns(normalizedInput);
+  if (monthlyPattern) {
+    return monthlyPattern;
   }
 
-  if (
-    normalizedInput === "every week" || normalizedInput === "every 1 week" ||
-    normalizedInput === "weekly"
-  ) {
-    return "0 0 * * 0";
-  }
-
-  if (
-    normalizedInput === "every month" || normalizedInput === "every 1 month" ||
-    normalizedInput === "monthly"
-  ) {
-    return "0 0 1 * *";
-  }
-
-  if (
-    normalizedInput === "every year" || normalizedInput === "every 1 year" ||
-    normalizedInput === "yearly" || normalizedInput === "annually"
-  ) {
-    return "0 0 1 1 *";
+  // Try matching yearly patterns
+  const yearlyPattern = PatternMatchers.matchYearlyPatterns(normalizedInput);
+  if (yearlyPattern) {
+    return yearlyPattern;
   }
 
   // Handle more complex patterns
@@ -79,187 +414,58 @@ function parseComplexPattern(input: string): string {
   let month = "*";
   let dayOfWeek = "*";
 
-  // Parse interval patterns
-  const simpleMinuteInterval = input.match(/every (\d+) minutes\s*$/);
-  if (simpleMinuteInterval) {
-    return `*/${simpleMinuteInterval[1]} * * * *`;
+  // Try interval patterns first
+  const intervalPattern = PatternMatchers.matchIntervalPatterns(input);
+  if (intervalPattern) {
+    return intervalPattern;
   }
 
-  const simpleHourInterval = input.match(/every (\d+) hours\s*$/);
-  if (simpleHourInterval) {
-    return `0 */${simpleHourInterval[1]} * * *`;
+  // Try monthly patterns
+  const monthlyPattern = PatternMatchers.matchMonthlyPatterns(input);
+  if (monthlyPattern) {
+    return monthlyPattern;
   }
 
-  const simpleDayInterval = input.match(/every (\d+) days\s*$/);
-  if (simpleDayInterval) {
-    return `0 0 */${simpleDayInterval[1]} * *`;
+  // Try yearly patterns
+  const yearlyPattern = PatternMatchers.matchYearlyPatterns(input);
+  if (yearlyPattern) {
+    return yearlyPattern;
   }
 
-  // monthly with minutes and hours
-  if (/^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i.test(input)) {
-    const matches = input.match(
-      /^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i,
-    );
-    if (!matches) throw new Error("Invalid schedule format");
-    let hour = parseInt(matches[2], 10);
-    const minute = parseInt(matches[3], 10);
-    const period = matches[4].toLowerCase();
-    if (period === "pm" && hour < 12) hour += 12;
-    if (hour === 12 && period === "am") hour = 0;
-    return `${minute} ${hour} 1 * *`;
+  // Try to match day of week patterns
+  const dayOfWeekPattern = PatternMatchers.matchDayOfWeekPatterns(input);
+  if (dayOfWeekPattern) {
+    dayOfWeek = dayOfWeekPattern;
   }
 
-  // monthly with hours
-  if (/^(every month|monthly) at (\d{1,2})(am|pm)$/i.test(input)) {
-    const matches = input.match(/^(every month|monthly) at (\d{1,2})(am|pm)$/i);
-    if (!matches) throw new Error("Invalid schedule format");
-    let hour = parseInt(matches[2], 10);
-    const period = matches[3].toLowerCase();
-    if (period === "pm" && hour < 12) hour += 12;
-    if (hour === 12 && period === "am") hour = 0;
-    return `0 ${hour} 1 * *`;
+  // Try to match day of month patterns
+  const dayOfMonthPattern = PatternMatchers.matchDayOfMonthPatterns(input);
+  if (dayOfMonthPattern) {
+    dayOfMonth = dayOfMonthPattern;
   }
 
-  const yearlyMatch = input.match(
-    /^(every year|yearly|annually) at (\d{1,2})(?::(\d{2}))?\s?(am|pm)?$/i,
-  );
-  if (yearlyMatch) {
-    let period = yearlyMatch[4]?.toLowerCase();
-    let hour = parseInt(yearlyMatch[2], 10);
-    const minute = parseInt(yearlyMatch[3] ?? "0", 10);
-
-    if (period) {
-      period = period.toLowerCase();
-      if (period === "pm" && hour < 12) hour += 12;
-      if (period === "am" && hour === 12) hour = 0;
-    }
-
-    return `${minute} ${hour} 1 1 *`;
-  }
-
-  // Handle specific months (defaults to first day of the month at midnight)
-  const monthMatch = input.match(
-    /^every ((?:January|February|March|April|May|June|July|August|September|October|November|December)(?:,\s?(?:January|February|March|April|May|June|July|August|September|October|November|December))*)$/i,
-  );
-  if (monthMatch) {
-    const months = monthMatch[1].split(/,\s?/).map((
-      month,
-    ) => (MONTHS[month.toLowerCase() as keyof typeof MONTHS]));
-    return `0 0 1 ${months.join(",")} *`;
-  }
-
-  // Time specifications
-  if (input.includes("at")) {
-    // Extract times (e.g., 2pm, 3:30am)
-    const timeRegex = /(\d+)(?::(\d+))?\s*(am|pm)/gi;
-    const times: { hour: number; minute: number }[] = [];
-    let match;
-
-    while ((match = timeRegex.exec(input)) !== null) {
-      let hour = parseInt(match[1], 10);
-      const minute = match[2] ? parseInt(match[2], 10) : 0;
-      const period = match[3].toLowerCase();
-
-      if (period === "pm" && hour < 12) hour += 12;
-      if (period === "am" && hour === 12) hour = 0;
-
-      times.push({ hour, minute });
-    }
-
-    if (times.length === 1) {
-      minute = times[0].minute.toString();
-      hour = times[0].hour.toString();
-    } else if (times.length > 1) {
-      // Only supporting same minute for multiple hours
-      minute = times[0].minute.toString();
-      hour = times.map((t) => t.hour).join(",");
+  // Try to match specific month patterns
+  const monthPattern = PatternMatchers.matchSpecificMonthPatterns(input);
+  if (monthPattern) {
+    month = monthPattern.month;
+    // Only update dayOfMonth if it was provided and not already set by day matcher
+    if (monthPattern.dayOfMonth && dayOfMonth === "*") {
+      dayOfMonth = monthPattern.dayOfMonth;
     }
   }
 
-  // Time range (e.g., from 9am to 5pm)
-  if (input.includes("from") && input.includes("to")) {
-    const rangeMatch = input.match(
-      /from (\d+)(?::(\d+))?\s*(am|pm) to (\d+)(?::(\d+))?\s*(am|pm)/i,
-    );
-    if (rangeMatch) {
-      let startHour = parseInt(rangeMatch[1], 10);
-      let endHour = parseInt(rangeMatch[4], 10);
-      const startPeriod = rangeMatch[3].toLowerCase();
-      const endPeriod = rangeMatch[6].toLowerCase();
-
-      if (startPeriod === "pm" && startHour < 12) startHour += 12;
-      if (startPeriod === "am" && startHour === 12) startHour = 0;
-      if (endPeriod === "pm" && endHour < 12) endHour += 12;
-      if (endPeriod === "am" && endHour === 12) endHour = 0;
-
-      hour = `${startHour}-${endHour}`;
-
-      // Check if there's an interval within the range
-      if (input.includes("every 30 minutes")) {
-        minute = "*/30";
-      } else if (input.includes("every 15 minutes")) {
-        minute = "*/15";
-      } else if (input.includes("every hour")) {
-        minute = "0";
-      }
-    }
+  // Try to match time patterns with "at"
+  const timeWithAtPattern = PatternMatchers.matchTimeWithAtPatterns(input);
+  if (timeWithAtPattern) {
+    hour = timeWithAtPattern.hour;
+    minute = timeWithAtPattern.minute;
   }
 
-  // Day of week
-  if (input.includes("weekday")) {
-    dayOfWeek = "1-5";
-  } else if (input.includes("weekend")) {
-    dayOfWeek = "0,6";
-  } else {
-    const daysOfWeek = {
-      sunday: 0,
-      monday: 1,
-      tuesday: 2,
-      wednesday: 3,
-      thursday: 4,
-      friday: 5,
-      saturday: 6,
-    };
-
-    const days: number[] = [];
-    for (const [day, value] of Object.entries(daysOfWeek)) {
-      if (input.includes(day)) {
-        days.push(value);
-      }
-    }
-
-    if (days.length > 0) {
-      dayOfWeek = days.sort().join(",");
-    }
-  }
-
-  // Month and day handling
-  if (input.includes("of the month")) {
-    const dayMatch = input.match(/(\d+)(st|nd|rd|th) of the month/);
-    if (dayMatch) {
-      dayOfMonth = dayMatch[1];
-    }
-  }
-
-  const monthList: number[] = [];
-  for (const [monthName, value] of Object.entries(MONTHS)) {
-    if (input.includes(monthName)) {
-      monthList.push(value);
-
-      // Check for specific day in month
-      const dayMatch = new RegExp(`${monthName} (\\d+)(st|nd|rd|th)`).exec(
-        input,
-      );
-      if (dayMatch) {
-        dayOfMonth = dayMatch[1];
-      }
-    }
-  }
-
-  if (monthList.length === 1) {
-    month = monthList[0].toString();
-  } else if (monthList.length > 1) {
-    month = monthList.sort().join(",");
+  // Try to match time range patterns
+  const timeRangePattern = PatternMatchers.matchTimeRangePatterns(input);
+  if (timeRangePattern) {
+    hour = timeRangePattern.hour;
+    minute = timeRangePattern.minute;
   }
 
   return `${minute} ${hour} ${dayOfMonth} ${month} ${dayOfWeek}`;
@@ -326,11 +532,7 @@ export function getNaturalLanguageScheduleForCronTabExpression(
   }
 
   // Format time
-  const formatTime = (h: number, m: number) => {
-    const hour12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    const period = h < 12 ? "AM" : "PM";
-    return `${hour12}:${m.toString().padStart(2, "0")} ${period}`;
-  };
+  // Use the TimeUtils.formatTime function for consistent time formatting
 
   // Build comprehensive description
   let desc = "";
@@ -344,7 +546,7 @@ export function getNaturalLanguageScheduleForCronTabExpression(
       if (hour.includes(",")) {
         // Multiple specific hours
         const hours = hour.split(",").map((h) => parseInt(h, 10));
-        const times = hours.map((h) => formatTime(h, minuteNum));
+        const times = hours.map((h) => TimeUtils.formatTime(h, minuteNum));
         desc = `At ${times.join(" and ")}`;
       } else if (hour.includes("-")) {
         // Hour range
@@ -354,17 +556,17 @@ export function getNaturalLanguageScheduleForCronTabExpression(
         if (minute.startsWith("*/")) {
           const interval = parseInt(minute.substring(2), 10);
           desc = `Every ${interval} minutes from ${
-            formatTime(startHour, 0)
-          } to ${formatTime(endHour, 0)}`;
+            TimeUtils.formatTime(startHour, 0)
+          } to ${TimeUtils.formatTime(endHour, 0)}`;
         } else {
           desc = `At ${minuteNum} minutes past the hour, from ${
-            formatTime(startHour, 0)
-          } to ${formatTime(endHour, 0)}`;
+            TimeUtils.formatTime(startHour, 0)
+          } to ${TimeUtils.formatTime(endHour, 0)}`;
         }
       } else {
         // Specific time
         const hourNum = parseInt(hour, 10);
-        desc = `At ${formatTime(hourNum, minuteNum)}`;
+        desc = `At ${TimeUtils.formatTime(hourNum, minuteNum)}`;
       }
     }
   }
