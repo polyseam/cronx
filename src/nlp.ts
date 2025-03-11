@@ -186,7 +186,7 @@ const PatternMatchers = {
       /^(every year|yearly|annually) at (\d{1,2})(?::(\d{2}))?\s?(am|pm)?$/i,
     );
     if (yearlyMatch) {
-      let period = yearlyMatch[4]?.toLowerCase();
+      const period = yearlyMatch[4]?.toLowerCase();
       let hour = parseInt(yearlyMatch[2], 10);
       const minute = parseInt(yearlyMatch[3] ?? "0", 10);
 
@@ -221,7 +221,7 @@ const PatternMatchers = {
         startHour = TimeUtils.convertTo24Hour(startHour, startPeriod);
         endHour = TimeUtils.convertTo24Hour(endHour, endPeriod);
 
-        let hour = `${startHour}-${endHour}`;
+        const hour = `${startHour}-${endHour}`;
         let minute = "0";
 
         // Check if there's an interval within the range
