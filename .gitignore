@@ -1,2 +1,3 @@
 dist/*/in/cronx*
-dist/*/release-archives/*tar.gz
+dist/release-archives/*
+!dist/release-archives/.preserve
