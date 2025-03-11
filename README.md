@@ -35,3 +35,17 @@ Deno.cron('my job', cronTab, () => {
     console.log("don't miss your meeting!')
 })
 ```
+
+## installation
+
+Shell (Mac, Linux):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/polyseam/cronx/main/install.sh | sh
+```
+
+PowerShell (Windows):
+
+```powershell
+irm https://raw.githubusercontent.com/polyseam/cronx/main/install.ps1 | iex
+```
