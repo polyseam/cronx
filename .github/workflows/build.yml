@@ -9,10 +9,10 @@ jobs:
   build:
     permissions:
       contents: write
+      id-token: write
     runs-on: ubuntu-latest
     steps:
-      - name: Deno
-        uses: denoland/setup-deno@v2
+      - uses: denoland/setup-deno@v2
         with:
           deno-version: "v2.2.2"
 
@@ -26,7 +26,7 @@ jobs:
 
       - run: deno task build
 
-      - name: Release
+      - name: Release CLI
         uses: softprops/action-gh-release@v1
         if: startsWith(github.ref, 'refs/tags/')
         with:
@@ -34,4 +34,5 @@ jobs:
           files: |
             dist/release-archives/chronx-*
 
-      - run: deno publish
+      - name: Release Library
+        run: deno publish
