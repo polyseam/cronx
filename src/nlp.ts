@@ -81,7 +81,9 @@ function parseComplexPattern(input: string): string {
 
   // monthly with minutes and hours
   if (/^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i.test(input)) {
-    const matches = input.match(/^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i);
+    const matches = input.match(
+      /^(every month|monthly) at (\d{1,2}):(\d{2})(am|pm)$/i,
+    );
     if (!matches) throw new Error("Invalid schedule format");
     let hour = parseInt(matches[2], 10);
     const minute = parseInt(matches[3], 10);
