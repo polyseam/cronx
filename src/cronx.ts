@@ -24,10 +24,6 @@ export const cronx = new Command().name("cronx")
   .description("A crontab expression generator with natural language support.")
   .version(deno_json.version)
   .arguments("<job>")
-  .option("--welcome", "Called by install scripts", {
-    hidden: true,
-    action: () => {},
-  })
   .option("-t, --tab <tab:string>", "The crontab for your workload")
   .option(
     "-n, --natural <description:string>",

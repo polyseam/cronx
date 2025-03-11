@@ -67,7 +67,7 @@ main() {
     if [ "$shell_profile" = ".zshrc" ]; then
         echo "finalizing installation..."
         # running 'cronx --help' will save the user wait time on first run
-        $exe --help --welcome
+        $exe --help
         echo
         echo "cronx was installed successfully! Please restart your terminal."
         echo "Need some help? Join our Discord https://cndi.run/di?utm_id=5119"
@@ -81,7 +81,7 @@ main() {
         . "$HOME/$shell_profile"
         echo "finalizing installation..."
         # running 'cronx --help' will save the user wait time on first run
-        $exe --help --welcome
+        $exe --help
         echo
         echo "cronx was installed successfully! Please restart your terminal."
         echo "Need some help? Join our Discord https://cndi.run/di?utm_id=5119"

@@ -43,7 +43,7 @@ if (!(";${Path};".ToLower() -like "*;${BinDir};*".ToLower())) {
   $Env:Path += ";${BinDir}"
 }
 
-& $CRONXExe '--help' '--welcome'
+& $CRONXExe '--help'
 
 Write-Output "cronx was installed successfully to ${CRONXExe}"
 Write-Output "Stuck? Join our Discord https://cronx.run/di?utm_id=5095"
