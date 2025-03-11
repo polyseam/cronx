@@ -15,10 +15,6 @@ cronx 'echo hello world from the future' -n "every tuesday at 3pm"
 # ❯ 0 15 * * 2
 ```
 
-> [!WARNING]
-
-> `cronx` uses 0-based indexing for days of the week, where 0 is Sunday
-
 ## library
 
 ### usage
