@@ -1,7 +1,8 @@
 import { Command, ValidationError } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { colors } from "@cliffy/ansi/colors";
-import { CConsole, type LogLevel } from "@polyseam/cconsole";
+import type { LogLevel } from "@polyseam/cconsole";
+import { cconsole } from "cconsole";
 import { convertCronToUTC, convertZeroBasedDaysToOneBased } from "./cron.ts";
 
 import deno_json from "../deno.json" with { type: "json" };
@@ -55,8 +56,12 @@ export const cronx = new Command().name("cronx")
   )
   .option("-y, --yes", "Disable interactivity")
   .option("-r, --run", "Run the job immediately as well")
-  .action(async (options, job) => {
-    const cconsole = new CConsole(options.verbosity as LogLevel);
+  .action(
+    async (options, job) => {
+      const logLevel = options.verbosity.toUpperCase() as LogLevel;
+
+      cconsole.setLogLevel(logLevel);
+
     const {
       tab,
       offset,
