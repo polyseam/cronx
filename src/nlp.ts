@@ -369,7 +369,6 @@ const PatternMatchers = {
   },
 };
 
-// Natural language to crontab
 /**
  * Converts a natural language schedule description into a cron tab expression.
  *
