@@ -1,8 +1,8 @@
-import type { JobLogger } from "./JobLogger.ts";
+import type { Logger } from "./JobLogger.ts";
 
-type GoOptions = {
+type RunExecutableOptions = {
   suppressStdio: boolean;
-  jobLogger: JobLogger;
+  jobLogger: Logger;
 };
 
 /**
@@ -10,7 +10,7 @@ type GoOptions = {
  *
  * @param job - The shell command to execute as a string
  * @param options - Configuration options for command execution
- * @param options.suppressStdio - When true, stdout and stderr are not captured
+ * @param options.suppressStdio - When true, stdout and stderr are not reflected by the jobLogger
  * @param options.jobLogger - Logger object to handle command output
  * @param options.jobLogger.log - Method to log stdout messages
  * @param options.jobLogger.error - Method to log stderr messages
@@ -25,7 +25,10 @@ type GoOptions = {
  * });
  * ```
  */
-export async function runExecutable(job: string, options: GoOptions) {
+export async function runExecutable(
+  job: string,
+  options: RunExecutableOptions,
+) {
   const { suppressStdio, jobLogger } = options;
 
   const stdout = suppressStdio ? "null" : "piped";

@@ -1,4 +1,12 @@
 import { colors } from "@cliffy/ansi/colors";
+
+export interface Logger {
+  // deno-lint-ignore no-explicit-any
+  log: (...args: any[]) => void;
+  // deno-lint-ignore no-explicit-any
+  error: (...args: any[]) => void;
+}
+
 /**
  * A utility class for logging messages with optional labels.
  *
@@ -10,7 +18,7 @@ import { colors } from "@cliffy/ansi/colors";
  * logger.error("Process failed"); // ["MyJob" stderr] Process failed
  * ```
  */
-export class JobLogger {
+export class JobLogger implements Logger {
   label?: string;
   constructor(label?: string) {
     this.label = label;

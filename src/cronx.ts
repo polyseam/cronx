@@ -26,16 +26,6 @@ type ScheduleExecutableOptions = {
   offset?: number;
 };
 
-function printExecutableJobStatus(job: string, suppressStdio: boolean) {
-  cconsole.debug();
-  cconsole.debug(
-    `Running job: ${job} ${
-      suppressStdio ? "and suppressing output to" : "writing output to"
-    } stdout and stderr`,
-  );
-  cconsole.debug();
-}
-
 /**
  * Schedules a cron job to execute a command-line executable.
  *
@@ -83,7 +73,13 @@ export function scheduleCronWithExecutable(
   );
 
   Deno.cron(label, denoCronExpression, async () => {
-    printExecutableJobStatus(job, suppressStdio);
+    cconsole.debug();
+    cconsole.debug(
+      `Running job: ${job} ${
+        suppressStdio ? "and suppressing output to" : "writing output to"
+      } stdout and stderr`,
+    );
+    cconsole.debug();
     await runExecutable(job, { suppressStdio, jobLogger });
   });
 }
