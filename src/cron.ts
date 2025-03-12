@@ -27,18 +27,29 @@ export function convertCronToUTC(
   const [minute, hour, dayOfMonth, month, dayOfWeek] = fields;
 
   const convertHourField = (hourField: string): string => {
-    const hourParts = hourField.split(","); // 1 element array if no comma
-    const convertedHours = hourParts.map((part) => {
-      if (part === "*") {
-        return "*";
-      } else if (part.includes("-")) {
-        const [start, end] = part.split("-").map(Number);
-        const startUTC = (start - timezoneOffset + 24) % 24;
-        const endUTC = (end - timezoneOffset + 24) % 24;
-        return `${startUTC}-${endUTC}`;
+    const hourParts = hourField.split(",");
+    const convertedHours = hourParts.flatMap((part) => {
+      if (part === "*") return ["*"];
+
+      if (part.includes("-")) {
+        let [start, end] = part.split("-").map(Number);
+        start = (start - timezoneOffset + 24) % 24;
+        end = (end - timezoneOffset + 24) % 24;
+
+        if (start === end) {
+          // Simplify identical start-end ranges, e.g., 3-3 => 3
+          return [`${start}`];
+        } else if (start < end) {
+          return [`${start}-${end}`];
+        } else {
+          // Handle wrap-around by splitting into two ranges
+          const firstRange = start === 23 ? "23" : `${start}-23`;
+          return [firstRange, `0-${end}`];
+        }
       }
-      const singleHour = Number(part);
-      return ((singleHour - timezoneOffset + 24) % 24).toString();
+
+      const singleHour = (Number(part) - timezoneOffset + 24) % 24;
+      return [singleHour.toString()];
     });
 
     return convertedHours.join(",");

@@ -49,3 +49,8 @@ Deno.test("crontab localisation with list", () => {
   const result = convertCronToUTC("0 12,14,15 * * 0", -3);
   assertEquals(result, "0 15,17,18 * * 0");
 });
+
+Deno.test("crontab localisation with wraparound", () => {
+  const result = convertCronToUTC("0 20-24 * * 0", -3);
+  assertEquals(result, "0 23,0-3 * * 0");
+});
