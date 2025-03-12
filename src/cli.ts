@@ -1,27 +1,30 @@
 import { Command, ValidationError } from "@cliffy/command";
 import { Confirm, Input, Select } from "@cliffy/prompt";
 import { colors } from "@cliffy/ansi/colors";
+
 import type { LogLevel } from "@polyseam/cconsole";
+
+import deno_json from "../deno.json" with { type: "json" };
 
 import { cconsole } from "cconsole";
 
 import { runExecutable } from "src/executables.ts";
 
-import { JobLogger } from "./JobLogger.ts";
-
-import deno_json from "../deno.json" with { type: "json" };
+import { JobLogger } from "src/JobLogger.ts";
 
 import { scheduleCronWithExecutable, validateJobLabel } from "src/cronx.ts";
 
 import {
   getCronTabExpressionForNaturalLanguageSchedule,
   getNaturalLanguageScheduleForCronTabExpression,
-} from "./nlp.ts";
+} from "src/nlp.ts";
+
+import { getLocalUTCOffset } from "src/cron.ts";
 
 const DEFAULT_SCHEDULE_OPTIONS = [
   { name: "Every minute", value: "* * * * *" },
   { name: "Every hour", value: "0 * * * *" },
-  { name: "Every day at midnight", value: "0 0 * * *" },
+  { name: "Every day at 12am", value: "0 0 * * *" },
   { name: "Every 15 minutes", value: "*/15 * * * *" },
   { name: "Every 30 minutes", value: "*/30 * * * *" },
   { name: "Every Sunday at 12am", value: "0 0 * * 0" },
@@ -41,7 +44,7 @@ export const cli = new Command().name("cronx")
     "Natural language description of schedule (e.g., 'every day at 2pm')",
   )
   .option("--offset <hours:number>", "The timezone offset in hours", {
-    default: new Date().getTimezoneOffset() / -60,
+    default: getLocalUTCOffset(),
   })
   .option("-l, --label <label:string>", "A label for the job")
   .option("-v, --verbosity <level:string>", "Set the log level", {
@@ -73,6 +76,7 @@ export const cli = new Command().name("cronx")
       const {
         tab,
         offset,
+        suppressStdio,
       } = options;
 
       if (options.label) {
@@ -176,14 +180,14 @@ export const cli = new Command().name("cronx")
         }'(${cronExpression})`,
       );
 
-      const { suppressStdio } = options;
-
       const jobLogger = new JobLogger(label);
 
       if (options.run) {
         cconsole.debug();
         cconsole.debug(
-          `Running job: ${job} ${suppressStdio ? "without" : "with"} stdio`,
+          `Running job: ${job} ${
+            suppressStdio ? "and suppressing output to" : "writing output to"
+          } stdout and stderr`,
         );
         cconsole.debug();
         await runExecutable(job, {

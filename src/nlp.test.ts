@@ -348,6 +348,12 @@ Deno.test("Monthly and yearly patterns", async (t) => {
       ),
       "0 20 * * 6",
     );
+    assertEquals(
+      getCronTabExpressionForNaturalLanguageSchedule(
+        "wednesdays and fridays at 3:30pm",
+      ),
+      "30 15 * * 3,5",
+    );
   });
 
   await t.step("yearly patterns", () => {

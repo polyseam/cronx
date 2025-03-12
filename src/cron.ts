@@ -141,3 +141,11 @@ export function convertCronxExpressionToDenoCronExpression(
     offset,
   );
 }
+
+/**
+ * Gets the local timezone offset in hours.
+ *
+ * @returns The local timezone offset in hours (e.g., -5 for EST, +1 for CET)
+ */
+export const getLocalUTCOffset =
+  (): number => (new Date().getTimezoneOffset() / -60);
