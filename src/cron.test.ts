@@ -1,24 +1,27 @@
 import { assertEquals } from "@std/assert";
 
-import { convertCronToUTC, convertZeroBasedDaysToOneBased } from "./cron.ts";
+import {
+  convertCronToUTC,
+  convertCronZeroBasedDaysToOneBased,
+} from "./cron.ts";
 
 Deno.test("basic zero-to-one: sunday as 1", () => {
-  const result = convertZeroBasedDaysToOneBased("0 0 * * 0");
+  const result = convertCronZeroBasedDaysToOneBased("0 0 * * 0");
   assertEquals(result, "0 0 * * 1");
 });
 
 Deno.test("basic zero-to-one conversion: saturday as 7", () => {
-  const result = convertZeroBasedDaysToOneBased("0 0 * * 6");
+  const result = convertCronZeroBasedDaysToOneBased("0 0 * * 6");
   assertEquals(result, "0 0 * * 7");
 });
 
 Deno.test("basic zero-to-one conversion: thursday,sunday", () => {
-  const result = convertZeroBasedDaysToOneBased("0 0 * * 4,6");
+  const result = convertCronZeroBasedDaysToOneBased("0 0 * * 4,6");
   assertEquals(result, "0 0 * * 5,7");
 });
 
 Deno.test("basic zero-to-one conversion: sunday to wednesday", () => {
-  const result = convertZeroBasedDaysToOneBased("0 0 * * 0-3");
+  const result = convertCronZeroBasedDaysToOneBased("0 0 * * 0-3");
   assertEquals(result, "0 0 * * 1-4");
 });
 

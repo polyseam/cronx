@@ -1,5 +1,5 @@
 {
-  "version": "0.3.0",
+  "version": "0.4.0",
   "name": "@polyseam/cronx",
   "tasks": {
     "run": "deno run --unstable-cron --allow-run main.ts",
@@ -101,6 +101,7 @@
     "@polyseam/cconsole": "jsr:@polyseam/cconsole@^1.0.0",
     "@std/assert": "jsr:@std/assert@1",
     "@std/testing": "jsr:@std/testing@^1.0.9",
+    "cconsole": "./src/cconsole.ts",
     "src/": "./src/"
   },
   "exports": {
