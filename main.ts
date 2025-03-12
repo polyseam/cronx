@@ -1,6 +1,6 @@
-import { cronxCommand } from "src/cronx.ts";
+import { cli } from "src/cli.ts";
 
 if (import.meta.main) {
   console.log();
-  await cronxCommand.parse(Deno.args);
+  await cli.parse(Deno.args);
 }

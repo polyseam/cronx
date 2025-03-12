@@ -1,13 +1,25 @@
 {
-  "version": "0.4.0",
   "name": "@polyseam/cronx",
+
+  "version": "0.4.0",
+
+  "description": "Cross-Platform CLI and Library for working with Cron Jobs",
+
+  "license": "Apache-2.0",
+
+  "exports": {
+    "./nlp": "./src/nlp.ts",
+    "./cron": "./src/cron.ts",
+    "./cronx": "./src/cronx.ts"
+  },
+
   "tasks": {
     "run": "deno run --unstable-cron --allow-run main.ts",
+
     "checks": {
       "command": "deno lint && deno check . && deno fmt --check"
     },
-    "description": "Cross-Platform CLI and Library for working with Cron Jobs",
-    "license": "Apache-2.0",
+
     "archive-all": {
       "dependencies": [
         "archive-win-amd64",
@@ -57,27 +69,33 @@
     "clean-linux-arm64": "rm dist/linux-arm64/in/cronx || true && rm dist/release-archives/cronx-linux-arm64.tar.gz || true",
 
     "build": {
-      "dependencies": ["clean-dist", "compile-all", "archive-all"]
+      "command": "deno task compile-all && deno task archive-all",
+      "dependencies": ["clean-dist"]
     },
 
     "build-linux-amd64": {
-      "dependencies": ["clean-linux-amd64", "compile-linux-amd64"]
+      "command": "deno task compile-linux-amd64",
+      "dependencies": ["clean-linux-amd64"]
     },
 
     "build-linux-arm64": {
-      "dependencies": ["clean-linux-arm64", "compile-linux-arm64"]
+      "command": "deno task compile-linux-arm64",
+      "dependencies": ["clean-linux-arm64"]
     },
 
     "build-mac-amd64": {
-      "dependencies": ["clean-mac-amd64", "compile-mac-amd64"]
+      "command": "deno task compile-mac-amd64",
+      "dependencies": ["clean-mac-amd64"]
     },
 
     "build-mac-arm64": {
-      "dependencies": ["clean-mac-arm64", "compile-mac-arm64"]
+      "command": "deno task compile-mac-arm64",
+      "dependencies": ["clean-mac-arm64"]
     },
 
     "build-win-amd64": {
-      "dependencies": ["clean-win-amd64", "compile-win-amd64"]
+      "command": "deno task compile-win-amd64",
+      "dependencies": ["clean-win-amd64"]
     },
 
     "test": {
@@ -103,8 +121,5 @@
     "@std/testing": "jsr:@std/testing@^1.0.9",
     "cconsole": "./src/cconsole.ts",
     "src/": "./src/"
-  },
-  "exports": {
-    "./nlp": "./src/nlp.ts"
   }
 }
