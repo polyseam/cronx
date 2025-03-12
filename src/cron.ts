@@ -52,13 +52,16 @@ export function convertCronToUTC(
 /**
  * Converts a cron expression with zero-based day-of-week values (0-6) to one-based values (1-7).
  *
+ * In the zero-based system Sunday is 0 and Saturday is 6
+ * In the one-based system Sunday is 1 and Saturday is 7
+ *
  * @param cronTab - A cron expression string with 5 fields (minute, hour, day of month, month, day of week)
  * @returns A modified cron expression with one-based day-of-week values
  * @throws {Error} If the input string doesn't contain exactly 5 fields
  *
  * @example
- * // Convert "30 4 * * 0" (Sunday is 0) to "30 4 * * 7" (Sunday is 7)
- * convertCronZeroBasedDaysToOneBased("30 4 * * 0"); // returns "30 4 * * 7"
+ * // Convert "30 4 * * 0" (Sunday is 0) to "30 4 * * 1" (Sunday is 1)
+ * convertCronZeroBasedDaysToOneBased("30 4 * * 0"); // returns "30 4 * * 1"
  *
  * @example
  * // Convert "15 14 * * 1-5" (Mon-Fri as 1-5) to "15 14 * * 2-6" (Mon-Fri as 2-6)
