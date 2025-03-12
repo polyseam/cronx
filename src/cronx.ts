@@ -1,3 +1,12 @@
+/**
+ * This module provides 2 simple APIs for scheduling cron jobs in Deno.
+ *
+ * scheduleCronWithExecutable() schedules a job to run a command-line executable.
+ * scheduleCronWithFunction() schedules a job to run an async function.
+ *
+ * @module
+ */
+
 import { cconsole } from "cconsole";
 
 import { convertCronxExpressionToDenoCronExpression } from "./cron.ts";
@@ -18,7 +27,7 @@ export function validateJobLabel(label: string): boolean {
   return (/^[a-zA-Z0-9\s\-_]+$/.test(label));
 }
 
-type ScheduleExecutableOptions = {
+export type ScheduleExecutableOptions = {
   suppressStdio: boolean;
   jobLogger: JobLogger;
   label: string;
@@ -84,7 +93,7 @@ export function scheduleCronWithExecutable(
   });
 }
 
-type ScheduleFunctionOptions = {
+export type ScheduleFunctionOptions = {
   label?: string;
   offset?: number;
   cronxExpression: string;

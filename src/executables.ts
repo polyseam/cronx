@@ -1,3 +1,9 @@
+/**
+ * This module contains utility functions for running binary executables as jobs
+ *
+ * @module
+ */
+
 import type { Logger } from "./JobLogger.ts";
 
 type RunExecutableOptions = {

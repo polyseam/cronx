@@ -1,4 +1,10 @@
 /**
+ * This module contains utility functions for converting cron expressions between different formats.
+ *
+ * @module
+ */
+
+/**
  * Converts a cron expression from local time to UTC time by adjusting the hour field.
  *
  * @param cronTab - A standard cron expression string with 5 fields (minute, hour, day of month, month, day of week)
