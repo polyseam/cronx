@@ -29,10 +29,13 @@ const DEFAULT_SCHEDULE_OPTIONS = [
 ];
 
 export const cli = new Command().name("cronx")
-  .description("A crontab expression generator with natural language support.")
+  .description("CLI utility for scheduling cron jobs")
   .version(deno_json.version)
   .arguments("<job>")
-  .option("-t, --tab <tab:string>", "The crontab for your workload")
+  .option(
+    "-t, --tab <tab:string>",
+    "The crontab expression for your workload in your timezone",
+  )
   .option(
     "-n, --natural <description:string>",
     "Natural language description of schedule (e.g., 'every day at 2pm')",
@@ -54,7 +57,7 @@ export const cli = new Command().name("cronx")
   })
   .option(
     `--suppress-stdio`,
-    `Cronix will not reflect job's 'stdout' and 'stderr'`,
+    `Whether or not to suppress your executable's "stdout" and "stderr"`,
     {
       default: false,
     },
