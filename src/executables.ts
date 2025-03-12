@@ -4,11 +4,11 @@
  * @module
  */
 
-import type { Logger } from "./JobLogger.ts";
+import { JobLogger, type Logger } from "./JobLogger.ts";
 
 type RunExecutableOptions = {
-  suppressStdio: boolean;
-  jobLogger: Logger;
+  suppressStdio?: boolean;
+  jobLogger?: Logger;
 };
 
 /**
@@ -35,7 +35,8 @@ export async function runExecutable(
   job: string,
   options: RunExecutableOptions,
 ) {
-  const { suppressStdio, jobLogger } = options;
+  const suppressStdio = options?.suppressStdio || false;
+  const jobLogger = options?.jobLogger || new JobLogger();
 
   const stdout = suppressStdio ? "null" : "piped";
   const stderr = suppressStdio ? "null" : "piped";

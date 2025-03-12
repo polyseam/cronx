@@ -28,11 +28,11 @@ export function validateJobLabel(label: string): boolean {
 }
 
 export type ScheduleExecutableOptions = {
-  suppressStdio: boolean;
-  jobLogger: JobLogger;
-  label: string;
   cronxExpression: string;
-  offset?: number;
+  label?: string;
+  offset?: number; // timezone utc offset in hours
+  suppressStdio?: boolean;
+  jobLogger?: JobLogger;
 };
 
 /**
@@ -94,9 +94,9 @@ export function scheduleCronWithExecutable(
 }
 
 export type ScheduleFunctionOptions = {
+  cronxExpression: string;
   label?: string;
   offset?: number;
-  cronxExpression: string;
 };
 
 /**
