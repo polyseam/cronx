@@ -68,7 +68,7 @@ const expression = "0 15 * * 2"; // every tuesday at 3pm local time
 const executable = 'echo "hello world from the future"';
 
 scheduleCronWithExecutable(executable, {
-  cronxEpression: expression,
+  cronxExpression: expression,
   label: "hello-world",
 });
 
@@ -80,7 +80,7 @@ scheduleCronWithFunction(async () => {
     console.log("service is down!");
   }
 }, {
-  cronxEpression: "* 0,8,16 * * *", // every 8 hours
+  cronxExpression: "* 0,8,16 * * *", // every 8 hours
   label: "uptime",
   offset: 0, // UTC time is offset=0
 });
