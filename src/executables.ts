@@ -5,9 +5,11 @@
  */
 
 import { JobLogger, type Logger } from "./JobLogger.ts";
+import { cconsole } from "cconsole";
 
 type RunExecutableOptions = {
-  suppressStdio?: boolean;
+  suppressStdout?: boolean;
+  suppressStderr?: boolean;
   jobLogger?: Logger;
 };
 
@@ -26,7 +28,7 @@ type RunExecutableOptions = {
  * @example
  * ```ts
  * await runExecutable("echo hello", {
- *   suppressStdio: false,
+ *   suppressStderr: true,
  *   jobLogger: console
  * });
  * ```
@@ -35,11 +37,15 @@ export async function runExecutable(
   job: string,
   options: RunExecutableOptions,
 ) {
-  const suppressStdio = options?.suppressStdio || false;
+  const suppressStdout = options?.suppressStdout || false;
+  const suppressStderr = options?.suppressStderr || false;
+
+  printDebugJobStatus({ suppressStderr, suppressStdout, job });
+
   const jobLogger = options?.jobLogger || new JobLogger();
 
-  const stdout = suppressStdio ? "null" : "piped";
-  const stderr = suppressStdio ? "null" : "piped";
+  const stdout = suppressStdout ? "null" : "piped";
+  const stderr = suppressStderr ? "null" : "piped";
 
   const [c, ...args] = job.split(" ");
 
@@ -51,15 +57,34 @@ export async function runExecutable(
 
   const output = await cmd.output();
   const d = new TextDecoder();
-  if (!suppressStdio) {
-    const stdoutTxt = d.decode(output.stdout);
-    const stderrTxt = d.decode(output.stderr);
 
-    if (stdoutTxt) {
-      jobLogger.log(stdoutTxt);
-    }
-    if (stderrTxt) {
-      jobLogger.error(stderrTxt);
-    }
+  if (!suppressStdout) {
+    jobLogger.log(d.decode(output.stdout));
   }
+
+  // note: stderr is not always an error
+  // unix philosophy says to use stderr for any diagnostic logging
+  if (!suppressStderr) {
+    jobLogger.error(d.decode(output.stderr));
+  }
+}
+
+function printDebugJobStatus(
+  { suppressStdout, suppressStderr, job }: {
+    suppressStdout: boolean;
+    suppressStderr: boolean;
+    job: string;
+  },
+) {
+  cconsole.debug();
+  cconsole.debug(
+    `Running job: ${job} with`,
+  );
+  cconsole.debug(
+    `stdout: ${suppressStdout ? "suppressed" : "reflected"}`,
+  );
+  cconsole.debug(
+    `stderr: ${suppressStderr ? "suppressed" : "reflected"}`,
+  );
+  cconsole.debug();
 }

@@ -9,11 +9,15 @@
 
 import { cconsole } from "cconsole";
 
-import { convertCronxExpressionToDenoCronExpression } from "./cron.ts";
+import {
+  convertCronxExpressionToDenoCronExpression,
+  getLocalUTCOffset,
+} from "./cron.ts";
 
 import { runExecutable } from "src/executables.ts";
 
-import type { JobLogger } from "./JobLogger.ts";
+import type { Logger } from "./JobLogger.ts";
+import type { LogLevel } from "@polyseam/cconsole";
 
 /**
  * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
@@ -31,8 +35,10 @@ export type ScheduleExecutableOptions = {
   cronxExpression: string;
   label?: string;
   offset?: number; // timezone utc offset in hours
-  suppressStdio?: boolean;
-  jobLogger?: JobLogger;
+  suppressStdout?: boolean;
+  suppressStderr?: boolean;
+  jobLogger?: Logger;
+  logLevel?: LogLevel;
 };
 
 /**
@@ -40,7 +46,9 @@ export type ScheduleExecutableOptions = {
  *
  * @param job - The command-line executable to run
  * @param opt - Configuration options for the scheduled job
- * @param opt.suppressStdio - Whether to suppress standard input/output
+ * @param opt.logLevel - The log level for cronx
+ * @param opt.suppressStdout - Whether to suppress stdout
+ * @param opt.suppressStderr - Whether to suppress stderr
  * @param opt.jobLogger - Optional custom logger function for job execution
  * @param opt.cronxExpression - The cron expression defining the schedule
  * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
@@ -58,8 +66,12 @@ export function scheduleCronWithExecutable(
   job: string,
   opt: ScheduleExecutableOptions,
 ) {
-  const { suppressStdio, jobLogger, cronxExpression } = opt;
-  const offset = opt.offset ?? new Date().getTimezoneOffset() / -60;
+  const { suppressStdout, suppressStderr, jobLogger, cronxExpression } = opt;
+
+  const offset = opt?.offset ?? getLocalUTCOffset();
+  const logLevel = opt?.logLevel ?? "INFO";
+
+  cconsole.setLogLevel(logLevel);
 
   let label = job;
 
@@ -82,14 +94,7 @@ export function scheduleCronWithExecutable(
   );
 
   Deno.cron(label, denoCronExpression, async () => {
-    cconsole.debug();
-    cconsole.debug(
-      `Running job: ${job} ${
-        suppressStdio ? "and suppressing output to" : "writing output to"
-      } stdout and stderr`,
-    );
-    cconsole.debug();
-    await runExecutable(job, { suppressStdio, jobLogger });
+    await runExecutable(job, { suppressStdout, suppressStderr, jobLogger });
   });
 }
 
@@ -97,6 +102,7 @@ export type ScheduleFunctionOptions = {
   cronxExpression: string;
   label?: string;
   offset?: number;
+  logLevel?: LogLevel;
 };
 
 /**
@@ -124,9 +130,13 @@ export function scheduleCronWithFunction(
 ) {
   const { cronxExpression } = opt;
 
-  const offset = opt.offset ?? new Date().getTimezoneOffset() / -60;
+  const offset = opt.offset ?? getLocalUTCOffset();
 
   const label = opt.label ?? jobFn.name;
+
+  const logLevel = opt.logLevel ?? "INFO";
+
+  cconsole.setLogLevel(logLevel);
 
   const denoCronExpression = convertCronxExpressionToDenoCronExpression(
     cronxExpression,
@@ -135,7 +145,7 @@ export function scheduleCronWithFunction(
 
   Deno.cron(label, denoCronExpression, async () => {
     cconsole.debug();
-    cconsole.debug("Running job function: " + label);
+    cconsole.debug("Running function job: " + label);
     cconsole.debug();
     await jobFn();
   });

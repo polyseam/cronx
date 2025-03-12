@@ -59,8 +59,15 @@ export const cli = new Command().name("cronx")
     },
   })
   .option(
-    `--suppress-stdio`,
-    `Whether or not to suppress your executable's "stdout" and "stderr"`,
+    `--suppress-stdout`,
+    `Whether or not to suppress your executable's "stdout"`,
+    {
+      default: false,
+    },
+  )
+  .option(
+    `--suppress-stderr`,
+    `Whether or not to suppress your executable's "stderr"`,
     {
       default: false,
     },
@@ -76,7 +83,8 @@ export const cli = new Command().name("cronx")
       const {
         tab,
         offset,
-        suppressStdio,
+        suppressStdout,
+        suppressStderr,
       } = options;
 
       if (options.label) {
@@ -183,21 +191,16 @@ export const cli = new Command().name("cronx")
       const jobLogger = new JobLogger(label);
 
       if (options.run) {
-        cconsole.debug();
-        cconsole.debug(
-          `Running job: ${job} ${
-            suppressStdio ? "and suppressing output to" : "writing output to"
-          } stdout and stderr`,
-        );
-        cconsole.debug();
         await runExecutable(job, {
-          suppressStdio,
+          suppressStdout,
+          suppressStderr,
           jobLogger,
         });
       }
 
       scheduleCronWithExecutable(job, {
-        suppressStdio,
+        suppressStdout,
+        suppressStderr,
         jobLogger,
         label,
         cronxExpression: cronExpression!,
