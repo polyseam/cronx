@@ -1,7 +1,7 @@
 {
   "name": "@polyseam/cronx",
 
-  "version": "0.4.3",
+  "version": "1.0.0",
 
   "description": "Cross-Platform CLI and Library for working with Cron Jobs",
 
