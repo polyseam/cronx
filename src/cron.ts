@@ -118,6 +118,14 @@ export function convertCronZeroBasedDaysToOneBased(cronTab: string): string {
   return [minute, hour, dayOfMonth, month, convertedDayOfWeek].join(" ");
 }
 
+/**
+ * Converts a cronx expression to a compatible with Deno.cron
+ *
+ * @param cronxExpression - A cronx expression string with 5 fields (minute, hour, day of month, month, 0-based day of week)
+ *
+ * @param offset - The timezone offset in hours (e.g., -5 for EST, +1 for CET)
+ * @returns A Deno.cron friendly expression string adjusted to UTC time and 1-based day-of-week values
+ */
 export function convertCronxExpressionToDenoCronExpression(
   cronxExpression: string,
   offset: number,
