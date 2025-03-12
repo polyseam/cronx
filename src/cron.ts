@@ -78,18 +78,26 @@ export function convertCronZeroBasedDaysToOneBased(cronTab: string): string {
 
   const convertDayField = (dayField: string): string => {
     return dayField
-      .split(",") // 1 element array if no comma
-      .map((dayPart) => {
-        if (dayPart === "*") {
-          return "*";
-        } else if (dayPart.includes("-")) {
-          const [start, end] = dayPart.split("-").map(Number);
-          const newStart = ((start + 1 - 1) % 7) + 1;
-          const newEnd = ((end + 1 - 1) % 7) + 1;
-          return `${newStart}-${newEnd}`;
+      .split(",")
+      .flatMap((dayPart) => {
+        if (dayPart === "*") return ["*"];
+
+        if (dayPart.includes("-")) {
+          let [start, end] = dayPart.split("-").map(Number);
+          start = (start % 7) + 1;
+          end = (end % 7) + 1;
+          if (start <= end) {
+            return [`${start}-${end}`];
+          } else {
+            // Handle wrap-around (e.g., 5-0 → 6-7,1)
+            return [`${start}-7`, `1-${end}`].filter((range) =>
+              !range.endsWith("-0")
+            );
+          }
         }
-        const day = Number(dayPart);
-        return (((day + 1 - 1) % 7) + 1).toString();
+
+        const day = (Number(dayPart) % 7) + 1;
+        return [day.toString()];
       })
       .join(",");
   };

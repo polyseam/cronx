@@ -25,6 +25,11 @@ Deno.test("basic zero-to-one conversion: sunday to wednesday", () => {
   assertEquals(result, "0 0 * * 1-4");
 });
 
+Deno.test("basic zero-to-one conversion: wednesday to monday wrap-around", () => {
+  const result = convertCronZeroBasedDaysToOneBased("0 0 * * 3-1");
+  assertEquals(result, "0 0 * * 4-7,1-2");
+});
+
 Deno.test("basic crontab localisation", () => {
   const result = convertCronToUTC("0 0 * * 0", 0);
   assertEquals(result, "0 0 * * 0");
