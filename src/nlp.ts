@@ -370,6 +370,23 @@ const PatternMatchers = {
 };
 
 // Natural language to crontab
+/**
+ * Converts a natural language schedule description into a cron tab expression.
+ *
+ * @param input - A natural language string describing a schedule (e.g., "every day at 3pm", "monthly on the 1st")
+ * @returns A valid cron tab expression corresponding to the natural language description
+ *
+ * @example
+ * ```ts
+ * getCronTabExpressionForNaturalLanguageSchedule("every day at 3pm")
+ * // Returns: "0 15 * * *"
+ *
+ * getCronTabExpressionForNaturalLanguageSchedule("monthly on the 1st")
+ * // Returns: "0 0 1 * *"
+ * ```
+ *
+ * @throws {Error} If the natural language input cannot be parsed into a valid cron expression
+ */
 export function getCronTabExpressionForNaturalLanguageSchedule(
   input: NaturalLanguageSchedule,
 ): CronTabExpression {
@@ -406,6 +423,27 @@ export function getCronTabExpressionForNaturalLanguageSchedule(
   return parseComplexPattern(normalizedInput);
 }
 
+/**
+ * Parses a natural language string into a cron pattern.
+ *
+ * This function processes various time-related patterns in natural language and converts them
+ * into a standard 5-part cron expression (minute hour dayOfMonth month dayOfWeek).
+ * It checks for different types of patterns in the following order:
+ * 1. Interval patterns
+ * 2. Monthly patterns
+ * 3. Yearly patterns
+ * 4. Day of week patterns
+ * 5. Day of month patterns
+ * 6. Specific month patterns
+ * 7. Time patterns with "at"
+ * 8. Time range patterns
+ *
+ * @param input - A natural language string describing a schedule (e.g., "every Monday at 3pm")
+ * @returns A cron pattern string in the format "minute hour dayOfMonth month dayOfWeek"
+ *
+ * @example
+ * parseComplexPattern("every Monday at 3pm") // Returns "0 15 * * 1"
+ */
 function parseComplexPattern(input: string): string {
   // Default values
   let minute = "0";
@@ -471,7 +509,32 @@ function parseComplexPattern(input: string): string {
   return `${minute} ${hour} ${dayOfMonth} ${month} ${dayOfWeek}`;
 }
 
-// Crontab to natural language
+/**
+ * Converts a cron expression into a human-readable schedule description.
+ *
+ * @param expression - A standard cron expression with 5 fields (minute, hour, day of month, month, day of week)
+ * @returns A natural language description of the schedule or an Error if the expression is invalid
+ *
+ * @example
+ * ```ts
+ * getNaturalLanguageScheduleForCronTabExpression("* * * * *")
+ * // Returns: "Every minute"
+ *
+ * getNaturalLanguageScheduleForCronTabExpression("0 12 * * 1-5")
+ * // Returns: "At 12:00 PM on weekdays"
+ *
+ * getNaturalLanguageScheduleForCronTabExpression("0 9 15,30 1,6,12 *")
+ * // Returns: "At 9:00 AM on day 15 and 30 in January, June, and December"
+ * ```
+ *
+ * @remarks
+ * - Handles standard cron expression format with 5 fields
+ * - Supports specific values, ranges (-), lists (,), steps (/), and wildcards (*)
+ * - Special handling for common patterns like "every minute", "every hour", etc.
+ * - Provides descriptive output for time ranges, weekdays/weekends, and monthly schedules
+ *
+ * @throws {Error} When the expression is empty or doesn't contain exactly 5 fields
+ */
 export function getNaturalLanguageScheduleForCronTabExpression(
   expression: CronTabExpression,
 ): NaturalLanguageSchedule | Error {

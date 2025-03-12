@@ -25,6 +25,12 @@ const DEFAULT_SCHEDULE_OPTIONS = [
   { name: "First day of every month", value: "0 0 1 * *" },
 ];
 
+/**
+ * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
+ *
+ * @param label - The job label to validate
+ * @returns true if the label is valid, otherwise false
+ */
 function validateJobLabel(label: string): boolean {
   return (/^[a-zA-Z0-9\s\-_]+$/.test(label));
 }
@@ -204,11 +210,17 @@ export const cronxCommand = new Command().name("cronx")
     },
   );
 
-type GoOptions = {
-  suppressStdio: boolean;
-  jobLogger: JobLogger;
-};
-
+/**
+ * A utility class for logging messages with optional labels.
+ *
+ * @class
+ * @example
+ * ```typescript
+ * const logger = new JobLogger("MyJob");
+ * logger.log("Process started"); // ["MyJob" stdout] Process started
+ * logger.error("Process failed"); // ["MyJob" stderr] Process failed
+ * ```
+ */
 class JobLogger {
   label?: string;
   constructor(label?: string) {
@@ -228,6 +240,31 @@ class JobLogger {
   }
 }
 
+type GoOptions = {
+  suppressStdio: boolean;
+  jobLogger: JobLogger;
+};
+
+/**
+ * Executes a shell command with optional stdio suppression and logging.
+ *
+ * @param job - The shell command to execute as a string
+ * @param options - Configuration options for command execution
+ * @param options.suppressStdio - When true, stdout and stderr are not captured
+ * @param options.jobLogger - Logger object to handle command output
+ * @param options.jobLogger.log - Method to log stdout messages
+ * @param options.jobLogger.error - Method to log stderr messages
+ *
+ * @returns Promise that resolves when the command completes
+ *
+ * @example
+ * ```ts
+ * await go("echo hello", {
+ *   suppressStdio: false,
+ *   jobLogger: console
+ * });
+ * ```
+ */
 async function go(job: string, options: GoOptions) {
   const { suppressStdio, jobLogger } = options;
 
