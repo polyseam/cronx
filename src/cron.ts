@@ -147,4 +147,5 @@ export function convertCronxExpressionToDenoCronExpression(
  *
  * @returns The local timezone offset in hours (e.g., -5 for EST, +1 for CET)
  */
-export const getLocalUTCOffset = () => (new Date().getTimezoneOffset() / -60);
+export const getLocalUTCOffset =
+  (): number => (new Date().getTimezoneOffset() / -60);
