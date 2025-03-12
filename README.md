@@ -5,6 +5,30 @@
 a typescript library and cli for using cron on any platform powered by
 [Deno.cron](https://docs.deno.com/examples/cron/)
 
+## cli
+
+### usage
+
+```bash
+cronx 'echo hello world from the future' -n "every tuesday at 3pm"
+# ? Do you want to schedule 'echo hello world from the future' to run 'At 3:00 PM on Tuesday'? (Y/n) › 
+# ❯ 0 15 * * 2
+```
+
+### installation
+
+Shell (Mac, Linux):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/polyseam/cronx/main/install.sh | sh
+```
+
+PowerShell (Windows):
+
+```powershell
+irm https://raw.githubusercontent.com/polyseam/cronx/main/install.ps1 | iex
+```
+
 ## library
 
 ### nlp
@@ -84,28 +108,4 @@ const timezoneAdjustedCronExpression =
 Deno.cron("set-alarms", timezoneAdjustedCronExpression, () => {
   console.log("don't forget to set your alarms for tomorrow!");
 });
-```
-
-## cli
-
-### usage
-
-```bash
-cronx 'echo hello world from the future' -n "every tuesday at 3pm"
-# ? Do you want to schedule 'echo hello world from the future' to run 'At 3:00 PM on Tuesday'? (Y/n) › 
-# ❯ 0 15 * * 2
-```
-
-### installation
-
-Shell (Mac, Linux):
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/polyseam/cronx/main/install.sh | sh
-```
-
-PowerShell (Windows):
-
-```powershell
-irm https://raw.githubusercontent.com/polyseam/cronx/main/install.ps1 | iex
 ```
