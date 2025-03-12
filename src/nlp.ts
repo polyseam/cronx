@@ -1,3 +1,12 @@
+/**
+ * This module provides utilities for working with natural language schedules and cron expressions.
+ *
+ * getNaturalLanguageScheduleForCronTabExpression() converts a cron expression into a human-readable schedule description.
+ * getCronTabExpressionForNaturalLanguageSchedule() converts a natural language schedule description into a cron expression.
+ *
+ * @module
+ */
+
 export type CronTabExpression = string;
 export type NaturalLanguageSchedule = string;
 
@@ -425,8 +434,9 @@ export function getCronTabExpressionForNaturalLanguageSchedule(
 /**
  * Parses a natural language string into a cron pattern.
  *
- * This function processes various time-related patterns in natural language and converts them
+ * Processes various time-related patterns in natural language and converts them
  * into a standard 5-part cron expression (minute hour dayOfMonth month dayOfWeek).
+ *
  * It checks for different types of patterns in the following order:
  * 1. Interval patterns
  * 2. Monthly patterns
