@@ -1,295 +1,137 @@
-import { Command, ValidationError } from "@cliffy/command";
-import { Confirm, Input, Select } from "@cliffy/prompt";
-import { colors } from "@cliffy/ansi/colors";
-import type { LogLevel } from "@polyseam/cconsole";
 import { cconsole } from "cconsole";
-import {
-  convertCronToUTC,
-  convertCronZeroBasedDaysToOneBased,
-} from "./cron.ts";
 
-import deno_json from "../deno.json" with { type: "json" };
+import { convertCronxExpressionToDenoCronExpression } from "./cron.ts";
 
-import {
-  getCronTabExpressionForNaturalLanguageSchedule,
-  getNaturalLanguageScheduleForCronTabExpression,
-} from "./nlp.ts";
+import { runExecutable } from "src/executables.ts";
 
-const DEFAULT_SCHEDULE_OPTIONS = [
-  { name: "Every minute", value: "* * * * *" },
-  { name: "Every hour", value: "0 * * * *" },
-  { name: "Every day at midnight", value: "0 0 * * *" },
-  { name: "Every 15 minutes", value: "*/15 * * * *" },
-  { name: "Every 30 minutes", value: "*/30 * * * *" },
-  { name: "Every Sunday at 12am", value: "0 0 * * 0" },
-  { name: "First day of every month", value: "0 0 1 * *" },
-];
+import type { JobLogger } from "./JobLogger.ts";
 
 /**
  * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
  *
+ * Those are the requirements for the string passed in as the first arg to Deno.cron()
+ *
  * @param label - The job label to validate
  * @returns true if the label is valid, otherwise false
  */
-function validateJobLabel(label: string): boolean {
+export function validateJobLabel(label: string): boolean {
   return (/^[a-zA-Z0-9\s\-_]+$/.test(label));
 }
 
-export const cronxCommand = new Command().name("cronx")
-  .description("A crontab expression generator with natural language support.")
-  .version(deno_json.version)
-  .arguments("<job>")
-  .option("-t, --tab <tab:string>", "The crontab for your workload")
-  .option(
-    "-n, --natural <description:string>",
-    "Natural language description of schedule (e.g., 'every day at 2pm')",
-  )
-  .option("--offset <hours:number>", "The timezone offset in hours", {
-    default: new Date().getTimezoneOffset() / -60,
-  })
-  .option("-l, --label <label:string>", "A label for the job")
-  .option("-v, --verbosity <level:string>", "Set the log level", {
-    default: "INFO",
-    action: (opt) => {
-      const verbosity = opt.verbosity.toUpperCase();
-      if (!["DEBUG", "INFO", "WARN", "ERROR"].includes(verbosity)) {
-        throw new ValidationError(
-          "Invalid log level, must be one of: 'DEBUG', 'INFO', 'WARN', 'ERROR'",
-        );
-      }
-    },
-  })
-  .option(
-    `--suppress-stdio`,
-    `Cronix will not reflect job's 'stdout' and 'stderr'`,
-    {
-      default: false,
-    },
-  )
-  .option("-y, --yes", "Disable interactivity")
-  .option("-r, --run", "Run the job immediately as well")
-  .action(
-    async (options, job) => {
-      const logLevel = options.verbosity.toUpperCase() as LogLevel;
-
-      cconsole.setLogLevel(logLevel);
-
-      const {
-        tab,
-        offset,
-      } = options;
-
-      if (options.label) {
-        if (!validateJobLabel(options.label)) {
-          cconsole.error(
-            'cronx: invalid "label": only alphanumeric characters, whitespace, hyphens, and underscores are allowed',
-          );
-          Deno.exit(1);
-        }
-      } else if (!validateJobLabel(job)) {
-        cconsole.error(
-          'cronx: unable to generate a valid "label" from your <job> argument, please provide one using the "--label" option',
-        );
-        Deno.exit(1);
-      }
-
-      const label = options.label ?? job;
-
-      let naturalInput = options.natural;
-      let naturalOutput;
-
-      const nonInteractive = options.yes;
-
-      let cronExpression = tab;
-
-      if (tab) {
-        naturalOutput = getNaturalLanguageScheduleForCronTabExpression(
-          cronExpression!,
-        );
-        if (naturalOutput instanceof Error) {
-          cconsole.error(naturalOutput.message);
-          Deno.exit(1);
-        }
-      } else if (naturalInput) {
-        cronExpression = getCronTabExpressionForNaturalLanguageSchedule(
-          naturalInput,
-        );
-
-        if (typeof cronExpression !== "string") {
-          cconsole.error(
-            'failed to generate cron expression from "--natural" input',
-          );
-          cconsole.error(naturalInput);
-          Deno.exit(1);
-        }
-      } else if (!nonInteractive) {
-        const sResponse = await Select.prompt({
-          message: `How often do you want to run '${colors.cyan(job)}' ?`,
-          options: [
-            ...DEFAULT_SCHEDULE_OPTIONS,
-            { name: "Write your own schedule...", value: "custom" },
-          ],
-        });
-
-        if (sResponse === "custom") {
-          naturalInput = await Input.prompt({
-            message: "Write your schedule in plain language",
-            hint: "e.g., 'every day at 2pm'",
-          });
-
-          cronExpression = getCronTabExpressionForNaturalLanguageSchedule(
-            naturalInput,
-          );
-        } else {
-          cronExpression = sResponse;
-        }
-      } else {
-        cconsole.error(
-          'when using "--yes", you must provide a "--tab" or "--natural" option',
-        );
-        Deno.exit(1);
-      }
-
-      naturalOutput = getNaturalLanguageScheduleForCronTabExpression(
-        cronExpression!,
-      );
-
-      if (naturalOutput instanceof Error) {
-        cconsole.error(naturalOutput.message);
-        Deno.exit(1);
-      }
-
-      if (!nonInteractive) {
-        const go = await Confirm.prompt({
-          message: `Do you want to schedule '${
-            colors.cyan(job)
-          }' to run '${naturalOutput}'?`,
-          hint: cronExpression,
-          default: true,
-        });
-
-        if (!go) {
-          cconsole.debug(colors.red("Aborted."));
-          Deno.exit(0);
-        }
-      }
-
-      cconsole.info(
-        `Scheduling '${colors.cyan(job)}' to run '${
-          colors.green(naturalOutput)
-        }'(${cronExpression})`,
-      );
-
-      const { suppressStdio } = options;
-
-      const jobLogger = new JobLogger(label);
-
-      if (options.run) {
-        cconsole.debug();
-        cconsole.debug(
-          `Running job: ${job} ${suppressStdio ? "without" : "with"} stdio`,
-        );
-        cconsole.debug();
-        await go(job, {
-          suppressStdio,
-          jobLogger,
-        });
-      }
-
-      const localizedTab = convertCronToUTC(cronExpression!, offset);
-      const finalTab = convertCronZeroBasedDaysToOneBased(localizedTab);
-
-      Deno.cron(label, finalTab, async () => {
-        cconsole.debug();
-        cconsole.debug(
-          `Running job: ${job} ${suppressStdio ? "without" : "with"} stdio`,
-        );
-        cconsole.debug();
-        await go(job, { suppressStdio, jobLogger });
-      });
-    },
-  );
-
-/**
- * A utility class for logging messages with optional labels.
- *
- * @class
- * @example
- * ```typescript
- * const logger = new JobLogger("MyJob");
- * logger.log("Process started"); // ["MyJob" stdout] Process started
- * logger.error("Process failed"); // ["MyJob" stderr] Process failed
- * ```
- */
-class JobLogger {
-  label?: string;
-  constructor(label?: string) {
-    this.label = label;
-  }
-  log(message: string) {
-    const m = this.label
-      ? `${colors.brightBlue(`["${this.label}" stdout]`)} ${message}`
-      : message;
-    console.log(m);
-  }
-  error(message: string) {
-    const m = this.label
-      ? `${colors.red(`["${this.label}" stderr]`)} ${message}`
-      : message;
-    console.error(m);
-  }
-}
-
-type GoOptions = {
+type ScheduleExecutableOptions = {
   suppressStdio: boolean;
   jobLogger: JobLogger;
+  label: string;
+  cronxExpression: string;
+  offset?: number;
+};
+
+function printExecutableJobStatus(job: string, suppressStdio: boolean) {
+  cconsole.debug();
+  cconsole.debug(
+    `Running job: ${job} ${
+      suppressStdio ? "and suppressing output to" : "writing output to"
+    } stdout and stderr`,
+  );
+  cconsole.debug();
+}
+
+/**
+ * Schedules a cron job to execute a command-line executable.
+ *
+ * @param job - The command-line executable to run
+ * @param opt - Configuration options for the scheduled job
+ * @param opt.suppressStdio - Whether to suppress standard input/output
+ * @param opt.jobLogger - Optional custom logger function for job execution
+ * @param opt.cronxExpression - The cron expression defining the schedule
+ * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
+ * @param opt.label - Optional custom label for the job (must be alphanumeric with allowed special characters)
+ *
+ * @throws {Error} If the provided or generated label is invalid
+ *
+ * @example
+ * scheduleCronWithExecutable('npm run build', {
+ *   cronxExpression: '0 0 * * *',
+ *   label: 'daily-build'
+ * });
+ */
+export function scheduleCronWithExecutable(
+  job: string,
+  opt: ScheduleExecutableOptions,
+) {
+  const { suppressStdio, jobLogger, cronxExpression } = opt;
+  const offset = opt.offset ?? new Date().getTimezoneOffset() / -60;
+
+  let label = job;
+
+  if (opt.label) {
+    if (!validateJobLabel(opt.label)) {
+      throw new Error(
+        'cronx: invalid "label": only alphanumeric characters, whitespace, hyphens, and underscores are allowed',
+      );
+    }
+    label = opt.label;
+  } else if (!validateJobLabel(job)) {
+    throw new Error(
+      'cronx: unable to generate a valid "label" from your <job> argument, please provide one using the label option',
+    );
+  }
+
+  const denoCronExpression = convertCronxExpressionToDenoCronExpression(
+    cronxExpression,
+    offset,
+  );
+
+  Deno.cron(label, denoCronExpression, async () => {
+    printExecutableJobStatus(job, suppressStdio);
+    await runExecutable(job, { suppressStdio, jobLogger });
+  });
+}
+
+type ScheduleFunctionOptions = {
+  label?: string;
+  offset?: number;
+  cronxExpression: string;
 };
 
 /**
- * Executes a shell command with optional stdio suppression and logging.
+ * Schedules a cron job with a specified function to be executed according to the given cron expression.
  *
- * @param job - The shell command to execute as a string
- * @param options - Configuration options for command execution
- * @param options.suppressStdio - When true, stdout and stderr are not captured
- * @param options.jobLogger - Logger object to handle command output
- * @param options.jobLogger.log - Method to log stdout messages
- * @param options.jobLogger.error - Method to log stderr messages
- *
- * @returns Promise that resolves when the command completes
+ * @param jobFn - The async function to be executed on the cron schedule
+ * @param opt - Configuration options for the cron schedule
+ * @param opt.cronxExpression - The cron expression defining when the job should run
+ * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
+ * @param opt.label - Optional label for the cron job (defaults to function name)
  *
  * @example
  * ```ts
- * await go("echo hello", {
- *   suppressStdio: false,
- *   jobLogger: console
+ * scheduleCronWithFunction(async () => {
+ *   // your job logic here
+ * }, {
+ *   cronxExpression: "0 0 * * *",
+ *   label: "daily-job"
  * });
  * ```
  */
-async function go(job: string, options: GoOptions) {
-  const { suppressStdio, jobLogger } = options;
+export function scheduleCronWithFunction(
+  jobFn: () => Promise<void>,
+  opt: ScheduleFunctionOptions,
+) {
+  const { cronxExpression } = opt;
 
-  const stdout = suppressStdio ? "null" : "piped";
-  const stderr = suppressStdio ? "null" : "piped";
+  const offset = opt.offset ?? new Date().getTimezoneOffset() / -60;
 
-  const [c, ...args] = job.split(" ");
+  const label = opt.label ?? jobFn.name;
 
-  const cmd = new Deno.Command(c, {
-    args,
-    stdout,
-    stderr,
+  const denoCronExpression = convertCronxExpressionToDenoCronExpression(
+    cronxExpression,
+    offset,
+  );
+
+  Deno.cron(label, denoCronExpression, async () => {
+    cconsole.debug();
+    cconsole.debug("Running job function: " + label);
+    cconsole.debug();
+    await jobFn();
   });
-
-  const output = await cmd.output();
-  const d = new TextDecoder();
-  if (!suppressStdio) {
-    const stdoutTxt = d.decode(output.stdout);
-    const stderrTxt = d.decode(output.stderr);
-
-    if (stdoutTxt) {
-      jobLogger.log(stdoutTxt);
-    }
-    if (stderrTxt) {
-      jobLogger.error(stderrTxt);
-    }
-  }
 }

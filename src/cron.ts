@@ -95,3 +95,13 @@ export function convertCronZeroBasedDaysToOneBased(cronTab: string): string {
 
   return [minute, hour, dayOfMonth, month, convertedDayOfWeek].join(" ");
 }
+
+export function convertCronxExpressionToDenoCronExpression(
+  cronxExpression: string,
+  offset: number,
+): string {
+  return convertCronToUTC(
+    convertCronZeroBasedDaysToOneBased(cronxExpression),
+    offset,
+  );
+}
