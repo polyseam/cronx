@@ -1,5 +1,5 @@
 {
-  "version": "0.4.0",
+  "version": "0.4.1",
   "name": "@polyseam/cronx",
   "tasks": {
     "run": "deno run --unstable-cron --allow-run main.ts",
