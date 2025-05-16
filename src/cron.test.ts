@@ -1,5 +1,6 @@
 import { assertEquals } from "@std/assert";
 
+import { isValidCronExpression } from "./cron.ts";
 import {
   convertCronToUTC,
   convertCronZeroBasedDaysToOneBased,
@@ -53,4 +54,47 @@ Deno.test("crontab localisation with list", () => {
 Deno.test("crontab localisation with wraparound", () => {
   const result = convertCronToUTC("0 20-24 * * 0", -3);
   assertEquals(result, "0 23,0-3 * * 0");
+});
+
+Deno.test("valid 5-field cron, zero-based dow default", () => {
+  assertEquals(isValidCronExpression("0 5 * * 1"), true);
+});
+
+Deno.test("valid 6-field cron with year", () => {
+  assertEquals(isValidCronExpression("0 12 * * 3 2024"), true);
+});
+
+Deno.test("invalid cron: too few fields", () => {
+  assertEquals(isValidCronExpression("0 0 * *"), false);
+});
+
+Deno.test("invalid cron: too many fields", () => {
+  assertEquals(isValidCronExpression("0 0 * * 0 2023 extra"), false);
+});
+
+Deno.test("invalid cron: bad characters", () => {
+  assertEquals(isValidCronExpression("0 0 * * L"), false);
+  assertEquals(isValidCronExpression("*/15 0 * * MON"), false);
+});
+
+Deno.test("day-of-week out of range zero-based", () => {
+  assertEquals(isValidCronExpression("0 0 * * 7"), false);
+  assertEquals(isValidCronExpression("0 0 * * 0-7"), false);
+});
+
+Deno.test("day-of-week wrap-range zero-based is allowed", () => {
+  // 5-1 splits into [5,1], both in 0..6
+  assertEquals(isValidCronExpression("0 0 * * 5-1"), true);
+});
+
+Deno.test("increment and list syntax allowed", () => {
+  assertEquals(isValidCronExpression("*/15 */2 1,15 * 0-6"), true);
+});
+
+Deno.test("one-based dow validation", () => {
+  // with zeroBased=false, valid 1..7
+  assertEquals(isValidCronExpression("0 0 * * 7", false), true);
+  assertEquals(isValidCronExpression("0 0 * * 0", false), false);
+  assertEquals(isValidCronExpression("0 0 * * 1-5", false), true);
+  assertEquals(isValidCronExpression("0 0 * * 6-8", false), false);
 });

@@ -1,16 +1,17 @@
 {
   "name": "@polyseam/cronx",
 
-  "version": "1.0.0",
+  "version": "1.1.0",
 
   "description": "Cross-Platform CLI and Library for working with Cron Jobs",
 
   "license": "Apache-2.0",
 
   "exports": {
+    ".": "./src/cronx.ts",
     "./nlp": "./src/nlp.ts",
     "./cron": "./src/cron.ts",
-    "./cronx": "./src/cronx.ts"
+    "./cli": "./main.ts"
   },
 
   "tasks": {

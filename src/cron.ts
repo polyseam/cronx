@@ -149,3 +149,37 @@ export function convertCronxExpressionToDenoCronExpression(
  */
 export const getLocalUTCOffset =
   (): number => (new Date().getTimezoneOffset() / -60);
+
+/**
+ * Determines whether the given string is a valid cron expression.
+ *
+ * @param cronExpression - The cron expression to validate, comprising fields for minutes, hours,
+ *                         day of month, month, and day of week (and optionally year), separated by spaces.
+ * @param zeroBased - If true, day-of-week values are treated as zero-based (0 = Sunday through 6 = Saturday).
+ *                    If false, values are one-based (1 = Sunday through 7 = Saturday). Defaults to true.
+ * @returns True if the cron expression is valid according to the specified indexing; otherwise, false.
+ */
+export function isValidCronExpression(
+  cronExpression: string,
+  zeroBased = true,
+): boolean {
+  const parts = cronExpression.trim().split(" ");
+  // must have 5 or 6 fields (year is optional)
+  if (parts.length < 5 || parts.length > 6) return false;
+  const fieldPattern = /^[\d*\/,\-]+$/;
+  const dowIndex = 4;
+  return parts.every((field, idx) => {
+    if (!fieldPattern.test(field)) return false;
+    if (idx === dowIndex) {
+      // validate day-of-week bounds
+      return field
+        .split(/[,\/\-]/)
+        .filter((v) => v !== "*")
+        .every((v) => {
+          const n = Number(v);
+          return zeroBased ? n >= 0 && n <= 6 : n >= 1 && n <= 7;
+        });
+    }
+    return true;
+  });
+}

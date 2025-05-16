@@ -19,6 +19,8 @@ import { runExecutable } from "src/executables.ts";
 import type { Logger } from "./JobLogger.ts";
 import type { LogLevel } from "@polyseam/cconsole";
 
+import { getCronTabExpressionForNaturalLanguageSchedule } from "./nlp.ts";
+
 /**
  * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
  *
@@ -31,15 +33,26 @@ export function validateJobLabel(label: string): boolean {
   return (/^[a-zA-Z0-9\s\-_]+$/.test(label));
 }
 
-export type ScheduleExecutableOptions = {
-  cronxExpression: string;
+interface ScheduleExecutableOptions {
+  cronxExpression?: string;
+  naturalLanguageSchedule?: string;
   label?: string;
   offset?: number; // timezone utc offset in hours
   suppressStdout?: boolean;
   suppressStderr?: boolean;
   jobLogger?: Logger;
   logLevel?: LogLevel;
-};
+}
+
+interface ScheduleExecutableOptionsWithCronxExpression
+  extends ScheduleExecutableOptions {
+  cronxExpression: string;
+}
+
+interface ScheduleExecutableOptionsWithNaturalLanguageExpression
+  extends ScheduleExecutableOptions {
+  naturalLanguageSchedule: string;
+}
 
 /**
  * Schedules a cron job to execute a command-line executable.
@@ -64,9 +77,15 @@ export type ScheduleExecutableOptions = {
  */
 export function scheduleCronWithExecutable(
   job: string,
-  opt: ScheduleExecutableOptions,
+  opt:
+    | ScheduleExecutableOptionsWithNaturalLanguageExpression
+    | ScheduleExecutableOptionsWithCronxExpression,
 ) {
-  const { suppressStdout, suppressStderr, jobLogger, cronxExpression } = opt;
+  const { suppressStdout, suppressStderr, jobLogger } = opt;
+  const cronxExpression = opt?.cronxExpression ??
+    getCronTabExpressionForNaturalLanguageSchedule(
+      opt.naturalLanguageSchedule!,
+    );
 
   const offset = opt?.offset ?? getLocalUTCOffset();
   const logLevel = opt?.logLevel ?? "INFO";
@@ -98,12 +117,22 @@ export function scheduleCronWithExecutable(
   });
 }
 
-export type ScheduleFunctionOptions = {
-  cronxExpression: string;
+interface ScheduleFunctionOptions {
+  cronxExpression?: string;
+  naturalLanguageSchedule?: string;
   label?: string;
   offset?: number;
   logLevel?: LogLevel;
-};
+}
+
+interface ScheduleFunctionOptionsWithCronxExpression
+  extends ScheduleFunctionOptions {
+  cronxExpression: string;
+}
+interface ScheduleFunctionOptionsWithNaturalLanguageExpression
+  extends ScheduleFunctionOptions {
+  naturalLanguageExpression: string;
+}
 
 /**
  * Schedules a cron job with a specified function to be executed according to the given cron expression.
@@ -111,6 +140,7 @@ export type ScheduleFunctionOptions = {
  * @param jobFn - The async function to be executed on the cron schedule
  * @param opt - Configuration options for the cron schedule
  * @param opt.cronxExpression - The cron expression defining when the job should run
+ * @param opt.naturalLanguageExpression - A natural language expression defining when the job should run
  * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
  * @param opt.label - Optional label for the cron job (defaults to function name)
  *
@@ -126,9 +156,14 @@ export type ScheduleFunctionOptions = {
  */
 export function scheduleCronWithFunction(
   jobFn: () => Promise<void>,
-  opt: ScheduleFunctionOptions,
+  opt:
+    | ScheduleFunctionOptionsWithCronxExpression
+    | ScheduleFunctionOptionsWithNaturalLanguageExpression,
 ) {
-  const { cronxExpression } = opt;
+  const expression = opt?.cronxExpression ??
+    getCronTabExpressionForNaturalLanguageSchedule(
+      opt.naturalLanguageSchedule!,
+    );
 
   const offset = opt.offset ?? getLocalUTCOffset();
 
@@ -139,7 +174,7 @@ export function scheduleCronWithFunction(
   cconsole.setLogLevel(logLevel);
 
   const denoCronExpression = convertCronxExpressionToDenoCronExpression(
-    cronxExpression,
+    expression,
     offset,
   );
 
