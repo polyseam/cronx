@@ -8,11 +8,55 @@ import {
  *
  * @returns The local timezone offset in hours (e.g., -5 for EST, +1 for CET)
  */
+/**
+ * Gets the local timezone offset in hours.
+ *
+ * This function calculates the offset between the local timezone and UTC.
+ * Positive values indicate timezones ahead of UTC (east of Greenwich),
+ * negative values indicate timezones behind UTC (west of Greenwich).
+ *
+ * @returns {number} The local timezone offset in hours (e.g., -5 for EST, +1 for CET)
+ *
+ * @example
+ * ```ts
+ * const offset = getLocalUTCOffset();
+ * console.log(`Current timezone is UTC${offset >= 0 ? '+' + offset : offset}`);
+ * ```
+ */
 export const getLocalUTCOffset =
   (): number => (new Date().getTimezoneOffset() / -60);
 
 /**
- * A type that represents a string with exactly 5 space-delimited parts
+ * A type that represents a valid cron expression string with exactly 5 space-delimited parts.
+ *
+ * Cron expression format: "minute hour day-of-month month day-of-week"
+ *
+ * Each part must follow standard cron syntax:
+ * - minute: 0-59
+ * - hour: 0-23
+ * - day-of-month: 1-31
+ * - month: 1-12 or JAN-DEC
+ * - day-of-week: 0-6 or SUN-SAT (0 or 7 is Sunday)
+ *
+ * Special characters:
+ * - *: any value
+ * - ,: value list separator
+ * - -: range of values
+ * - /: step values
+ * - ?: unspecified value (for day-of-month or day-of-week)
+ * - L: last day of month or week
+ *
+ * @example
+ * ```ts
+ * // Every day at midnight
+ * const midnight: CronTabExpressionString = "0 0 * * *" as CronTabExpressionString;
+ *
+ * // Every Monday at 9:30am
+ * const mondayMorning: CronTabExpressionString = "30 9 * * 1" as CronTabExpressionString;
+ *
+ * // Every 15 minutes
+ * const everyQuarter: CronTabExpressionString = "*\/15 * * * *" as CronTabExpressionString;
+ * ```
  */
 export type CronTabExpressionString =
   & `${string} ${string} ${string} ${string} ${string}`
@@ -49,6 +93,30 @@ function convertHourField(hourField: string, timezoneOffset: number): string {
   return convertedHours.join(",");
 }
 
+/**
+ * A class representing a cron expression with timezone support and utility methods.
+ *
+ * CronTabExpression helps with creating, validating, and manipulating cron expressions.
+ * It provides timezone adjustment capabilities and conversion to/from natural language.
+ *
+ * @class CronTabExpression
+ *
+ * @example
+ * ```ts
+ * // Create from standard cron expression
+ * const dailyJob = new CronTabExpression("0 0 * * *" as CronTabExpressionString);
+ *
+ * // Create from natural language
+ * const weeklyJob = CronTabExpression.fromNaturalLanguageSchedule("every Monday at 9am");
+ *
+ * // Convert to Deno cron schedule
+ * const schedule = dailyJob.toDenoCronSchedule();
+ * Deno.cron("my-job", schedule, myJobFunction);
+ *
+ * // Adjust for different timezone
+ * const estJob = new CronTabExpression("0 9 * * *" as CronTabExpressionString, -5);
+ * ```
+ */
 export class CronTabExpression {
   private static readonly FIELD_NAMES = [
     "minute",
@@ -58,6 +126,11 @@ export class CronTabExpression {
     "day of week",
   ] as const;
 
+  /**
+   * Array of month name abbreviations used for cron expression parsing and formatting.
+   *
+   * These names can be used in the month field of a cron expression.
+   */
   static readonly MONTH_NAMES = [
     "JAN",
     "FEB",
@@ -73,6 +146,11 @@ export class CronTabExpression {
     "DEC",
   ] as const;
 
+  /**
+   * Array of day name abbreviations used for cron expression parsing and formatting.
+   *
+   * These names can be used in the day-of-week field of a cron expression.
+   */
   static readonly DAY_NAMES = [
     "SUN",
     "MON",
@@ -87,6 +165,23 @@ export class CronTabExpression {
 
   public offset: number;
 
+  /**
+   * Creates a new CronTabExpression instance.
+   *
+   * @param {CronTabExpressionString} expression - A valid cron expression string
+   * @param {number} [offset] - Timezone UTC offset in hours (defaults to local timezone)
+   *
+   * @throws {Error} If the provided expression is not a valid cron expression
+   *
+   * @example
+   * ```ts
+   * // Create with default timezone (local)
+   * const cronExp = new CronTabExpression("0 12 * * 1-5" as CronTabExpressionString);
+   *
+   * // Create with specific timezone (UTC+2)
+   * const europeCron = new CronTabExpression("0 9 * * *" as CronTabExpressionString, 2);
+   * ```
+   */
   constructor(
     public expression: CronTabExpressionString,
     offset?: number, // timezone UTC offset in hours
@@ -96,6 +191,26 @@ export class CronTabExpression {
     this.validate();
   }
 
+  /**
+   * Creates a CronTabExpression from a natural language schedule description.
+   *
+   * @param {string} nlSchedule - Natural language description of the schedule
+   * @param {number} [offset] - Timezone UTC offset in hours (defaults to local timezone)
+   * @returns {CronTabExpression} A new CronTabExpression instance
+   *
+   * @throws {Error} If the natural language schedule cannot be parsed
+   *
+   * @example
+   * ```ts
+   * // Create from various natural language descriptions
+   * const daily = CronTabExpression.fromNaturalLanguageSchedule("every day at midnight");
+   * const weekly = CronTabExpression.fromNaturalLanguageSchedule("every Monday at 9am");
+   * const complex = CronTabExpression.fromNaturalLanguageSchedule("every 15 minutes on weekdays");
+   *
+   * // With specific timezone (EST)
+   * const estJob = CronTabExpression.fromNaturalLanguageSchedule("daily at 8am", -5);
+   * ```
+   */
   static fromNaturalLanguageSchedule(
     nlSchedule: string,
     offset?: number,
@@ -109,6 +224,18 @@ export class CronTabExpression {
     );
   }
 
+  /**
+   * Converts the cron expression to a human-readable natural language description.
+   *
+   * @returns {string} A natural language description of the schedule
+   *
+   * @example
+   * ```ts
+   * const cron = new CronTabExpression("0 9 * * 1-5" as CronTabExpressionString);
+   * const description = cron.toNaturalLanguageSchedule();
+   * console.log(description); // "At 9:00 AM, Monday through Friday"
+   * ```
+   */
   toNaturalLanguageSchedule(): string {
     const nlSchedule = getNaturalLanguageScheduleForCronTabExpression(
       this.expression,
@@ -116,14 +243,43 @@ export class CronTabExpression {
     return nlSchedule;
   }
 
+  /**
+   * Validates that the expression is a valid cron expression string.
+   *
+   * @private
+   * @throws {Error} If the expression is not valid
+   */
   private validate(): void {
     validateCronTabExpressionString(this.expression);
   }
 
+  /**
+   * Returns the string representation of the cron expression.
+   *
+   * @returns {CronTabExpressionString} The cron expression string
+   *
+   * @example
+   * ```ts
+   * const cron = new CronTabExpression("0 12 * * *" as CronTabExpressionString);
+   * console.log(cron.toString()); // "0 12 * * *"
+   * ```
+   */
   public toString(): CronTabExpressionString {
     return this.expression;
   }
 
+  /**
+   * Gets the local timezone offset in hours.
+   *
+   * @returns {number} The local timezone offset in hours
+   *
+   * @example
+   * ```ts
+   * const cron = new CronTabExpression("0 12 * * *" as CronTabExpressionString);
+   * const localOffset = cron.getLocalUTCOffset();
+   * console.log(`Local timezone is UTC${localOffset >= 0 ? '+' + localOffset : localOffset}`);
+   * ```
+   */
   getLocalUTCOffset(): number {
     return getLocalUTCOffset();
   }
@@ -186,6 +342,26 @@ export class CronTabExpression {
     return mappedPieces.join(",");
   }
 
+  /**
+   * Formats the cron expression with specified options, adjusting for timezone and day numbering.
+   *
+   * @param {Object} [options] - Formatting options
+   * @param {number} [options.sundayIs=1] - The base for day-of-week (0 or 1, where 0 means Sunday=0, 1 means Sunday=1)
+   * @param {number} [options.toOffset=0] - Target timezone offset to convert to (in hours)
+   * @returns {string} The formatted cron expression
+   *
+   * @example
+   * ```ts
+   * // Convert from local timezone to UTC
+   * const localCron = new CronTabExpression("0 9 * * *" as CronTabExpressionString);
+   * const utcCron = localCron.format({ toOffset: 0 });
+   * console.log(utcCron); // Will adjust the hour based on local timezone
+   *
+   * // Change day-of-week numbering system
+   * const cron = new CronTabExpression("0 12 * * 0" as CronTabExpressionString);
+   * console.log(cron.format({ sundayIs: 1 })); // "0 12 * * 1" (Sunday=1)
+   * ```
+   */
   format(
     options: {
       sundayIs: number;
@@ -212,6 +388,26 @@ export class CronTabExpression {
     ].join(" ");
   }
 
+  /**
+   * Converts the cron expression to a Deno.CronSchedule object.
+   *
+   * This allows direct use with Deno.cron() API for scheduling.
+   * The method automatically formats the expression to be compatible with Deno's requirements,
+   * including setting Sunday to 1 in the day-of-week field.
+   *
+   * @returns {Deno.CronSchedule} A Deno-compatible cron schedule object
+   *
+   * @example
+   * ```ts
+   * const cronExp = new CronTabExpression("0 12 * * 1-5" as CronTabExpressionString);
+   * const schedule = cronExp.toDenoCronSchedule();
+   *
+   * // Use with Deno.cron
+   * Deno.cron("weekday-job", schedule, async () => {
+   *   // job logic here
+   * });
+   * ```
+   */
   public toDenoCronSchedule(): Deno.CronSchedule {
     const parts = this.format({
       sundayIs: 1,
