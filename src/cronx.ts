@@ -320,7 +320,12 @@ export function scheduleCronWithFunction(
 
   cconsole.setLogLevel(logLevel);
 
-  Deno.cron(label, exp.toDenoCronSchedule(), async () => {
+  const DENO_FORMAT = {
+    sundayIs: 1,
+    toOffset: 0,
+  };
+
+  Deno.cron(label, exp.format(DENO_FORMAT), async () => {
     cconsole.debug();
     cconsole.debug("Running function job: " + label);
     cconsole.debug();
