@@ -1,3 +1,4 @@
+import type { CronTabExpressionString } from "./CronTabExpression.ts";
 /**
  * This module provides utilities for working with natural language schedules and cron expressions.
  *
@@ -7,7 +8,6 @@
  * @module
  */
 
-export type CronTabExpression = string;
 export type NaturalLanguageSchedule = string;
 
 // Time-related type definitions
@@ -397,7 +397,7 @@ const PatternMatchers = {
  */
 export function getCronTabExpressionForNaturalLanguageSchedule(
   input: NaturalLanguageSchedule,
-): CronTabExpression {
+): CronTabExpressionString<false> {
   // Normalize input
   const normalizedInput = input.toLowerCase().trim().replace(/\s+/g, " ");
 

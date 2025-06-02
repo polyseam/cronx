@@ -19,7 +19,11 @@ import {
   getNaturalLanguageScheduleForCronTabExpression,
 } from "src/nlp.ts";
 
-import { getLocalUTCOffset } from "src/cron.ts";
+import {
+  CronTabExpression,
+  type CronTabExpressionString,
+  getLocalUTCOffset,
+} from "./CronTabExpression.ts";
 
 const DEFAULT_SCHEDULE_OPTIONS = [
   { name: "Every minute", value: "* * * * *" },
@@ -108,7 +112,9 @@ export const cli = new Command().name("cronx")
 
       const nonInteractive = options.yes;
 
-      let cronExpression = tab;
+      let cronExpression = new CronTabExpression(tab as CronTabExpressionString)
+        .toString();
+      console.log("cronExpression", cronExpression);
 
       if (tab) {
         naturalOutput = getNaturalLanguageScheduleForCronTabExpression(

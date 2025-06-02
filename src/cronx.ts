@@ -9,17 +9,18 @@
 
 import { cconsole } from "cconsole";
 
-import {
-  convertCronxExpressionToDenoCronExpression,
-  getLocalUTCOffset,
-} from "./cron.ts";
-
 import { runExecutable } from "src/executables.ts";
 
 import type { Logger } from "./JobLogger.ts";
 import type { LogLevel } from "@polyseam/cconsole";
 
 import { getCronTabExpressionForNaturalLanguageSchedule } from "./nlp.ts";
+import {
+  CronTabExpression,
+  type CronTabExpressionString,
+  getLocalUTCOffset,
+} from "./CronTabExpression.ts";
+import type { off } from "node:process";
 
 /**
  * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
@@ -34,7 +35,7 @@ export function validateJobLabel(label: string): boolean {
 }
 
 interface ScheduleExecutableOptions {
-  cronxExpression?: string;
+  cronTabExpression?: CronTabExpressionString<false>;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number; // timezone utc offset in hours
@@ -44,14 +45,16 @@ interface ScheduleExecutableOptions {
   logLevel?: LogLevel;
 }
 
-interface ScheduleExecutableOptionsWithCronxExpression
+interface ScheduleExecutableOptionsWithcronTabExpression
   extends ScheduleExecutableOptions {
-  cronxExpression: string;
+  cronTabExpression: CronTabExpressionString<false>;
+  naturalLanguageSchedule?: never;
 }
 
 interface ScheduleExecutableOptionsWithNaturalLanguageExpression
   extends ScheduleExecutableOptions {
   naturalLanguageSchedule: string;
+  cronTabExpression?: never;
 }
 
 /**
@@ -63,7 +66,7 @@ interface ScheduleExecutableOptionsWithNaturalLanguageExpression
  * @param opt.suppressStdout - Whether to suppress stdout
  * @param opt.suppressStderr - Whether to suppress stderr
  * @param opt.jobLogger - Optional custom logger function for job execution
- * @param opt.cronxExpression - The cron expression defining the schedule
+ * @param opt.cronTabExpression - The cron expression defining the schedule
  * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
  * @param opt.label - Optional custom label for the job (must be alphanumeric with allowed special characters)
  *
@@ -71,7 +74,7 @@ interface ScheduleExecutableOptionsWithNaturalLanguageExpression
  *
  * @example
  * scheduleCronWithExecutable('npm run build', {
- *   cronxExpression: '0 0 * * *',
+ *   cronTabExpression: '0 0 * * *',
  *   label: 'daily-build'
  * });
  */
@@ -79,15 +82,26 @@ export function scheduleCronWithExecutable(
   job: string,
   opt:
     | ScheduleExecutableOptionsWithNaturalLanguageExpression
-    | ScheduleExecutableOptionsWithCronxExpression,
+    | ScheduleExecutableOptionsWithcronTabExpression,
 ) {
   const { suppressStdout, suppressStderr, jobLogger } = opt;
-  const cronxExpression = opt?.cronxExpression ??
-    getCronTabExpressionForNaturalLanguageSchedule(
-      opt.naturalLanguageSchedule!,
-    );
-
+  let exp = {} as Deno.CronSchedule;
   const offset = opt?.offset ?? getLocalUTCOffset();
+
+  if (opt.cronTabExpression) {
+    exp = {
+      ...new CronTabExpression(opt.cronTabExpression, offset)
+        .toDenoCronSchedule(),
+    };
+  } else {
+    exp = {
+      ...new CronTabExpression.fromNaturalLanguageSchedule(
+        opt.naturalLanguageSchedule,
+        offset,
+      ).toDenoCronSchedule(),
+    };
+  }
+
   const logLevel = opt?.logLevel ?? "INFO";
 
   cconsole.setLogLevel(logLevel);
@@ -107,27 +121,22 @@ export function scheduleCronWithExecutable(
     );
   }
 
-  const denoCronExpression = convertCronxExpressionToDenoCronExpression(
-    cronxExpression,
-    offset,
-  );
-
-  Deno.cron(label, denoCronExpression, async () => {
+  Deno.cron(label, exp, async () => {
     await runExecutable(job, { suppressStdout, suppressStderr, jobLogger });
   });
 }
 
 interface ScheduleFunctionOptions {
-  cronxExpression?: string;
+  cronTabExpression?: CronTabExpressionString<false>;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number;
   logLevel?: LogLevel;
 }
 
-interface ScheduleFunctionOptionsWithCronxExpression
+interface ScheduleFunctionOptionsWithcronTabExpression
   extends ScheduleFunctionOptions {
-  cronxExpression: string;
+  cronTabExpression: string;
 }
 interface ScheduleFunctionOptionsWithNaturalLanguageExpression
   extends ScheduleFunctionOptions {
@@ -139,7 +148,7 @@ interface ScheduleFunctionOptionsWithNaturalLanguageExpression
  *
  * @param jobFn - The async function to be executed on the cron schedule
  * @param opt - Configuration options for the cron schedule
- * @param opt.cronxExpression - The cron expression defining when the job should run
+ * @param opt.cronTabExpression - The cron expression defining when the job should run
  * @param opt.naturalLanguageExpression - A natural language expression defining when the job should run
  * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
  * @param opt.label - Optional label for the cron job (defaults to function name)
@@ -149,7 +158,7 @@ interface ScheduleFunctionOptionsWithNaturalLanguageExpression
  * scheduleCronWithFunction(async () => {
  *   // your job logic here
  * }, {
- *   cronxExpression: "0 0 * * *",
+ *   cronTabExpression: "0 0 * * *",
  *   label: "daily-job"
  * });
  * ```
@@ -157,10 +166,10 @@ interface ScheduleFunctionOptionsWithNaturalLanguageExpression
 export function scheduleCronWithFunction(
   jobFn: () => Promise<void>,
   opt:
-    | ScheduleFunctionOptionsWithCronxExpression
+    | ScheduleFunctionOptionsWithcronTabExpression
     | ScheduleFunctionOptionsWithNaturalLanguageExpression,
 ) {
-  const expression = opt?.cronxExpression ??
+  const expression = opt?.cronTabExpression ??
     getCronTabExpressionForNaturalLanguageSchedule(
       opt.naturalLanguageSchedule!,
     );
@@ -173,12 +182,12 @@ export function scheduleCronWithFunction(
 
   cconsole.setLogLevel(logLevel);
 
-  const denoCronExpression = convertCronxExpressionToDenoCronExpression(
+  const schedule = new CronTabExpression(
     expression,
     offset,
-  );
+  ).toDenoCronSchedule();
 
-  Deno.cron(label, denoCronExpression, async () => {
+  Deno.cron(label, {}, async () => {
     cconsole.debug();
     cconsole.debug("Running function job: " + label);
     cconsole.debug();

@@ -1,7 +1,17 @@
+import type { off } from "node:process";
+
+/**
+ * Gets the local timezone offset in hours.
+ *
+ * @returns The local timezone offset in hours (e.g., -5 for EST, +1 for CET)
+ */
+export const getLocalUTCOffset =
+  (): number => (new Date().getTimezoneOffset() / -60);
+
 /*
  * cron-expression.ts
  *
- * Defines a string-literal type `CronTabExpression<SundayZeroBased>` that validates
+ * Defines a string-literal type `CronTabExpressionString<SundayZeroBased>` that validates
  * a standard five-field cron expression at compile time. If `SundayZeroBased` is `true`,
  * Sunday is represented as "0" in the day-of-week field; otherwise, Sunday is "1".
  *
@@ -9,12 +19,12 @@
  *   import { CronTabExpression } from "./cron-expression";
  *
  *   // Sunday = "0"
- *   type CronZero = CronTabExpression<true>;
+ *   type CronZero = CronTabExpressionString<true>;
  *   const a: CronZero = "15 0 1-10 * 0";      // valid
  *   // const badA: CronZero = "0 0 * * 7";      // invalid (7 not allowed when Sunday=0)
  *
  *   // Sunday = "1"
- *   type CronOne = CronTabExpression<false>;
+ *   type CronOne = CronTabExpressionString<false>;
  *   const b: CronOne = "0 0 * * 7";             // valid (Sunday=7)
  *   // const badB: CronOne = "0 0 * * 0";       // invalid (0 not allowed when Sunday=1)
  */
@@ -173,7 +183,6 @@ type Num1To7 = "1" | "2" | "3" | "4" | "5" | "6" | "7";
 // Step values (1-59 for minutes, 1-23 for hours, etc.)
 type Num1To59 = Exclude<Num0To59, "0">;
 type Num1To23 = Exclude<Num0To23, "0">;
-type Num1To6 = Exclude<Num0To6, "0"> | "7"; // 1-6 for Sunday=0, 1-7 for Sunday=1
 
 //
 // ──────────────────────────────────────────────────────────────────────────────
@@ -222,12 +231,12 @@ type Month_Atom =
  * If SB = true  => allowed numbers "0"-"6".
  * If SB = false => allowed numbers "1"-"7".
  */
-type Dow_Atom<SB extends boolean> =
+type Dow_Atom<SB extends boolean = false> =
   | "*"
   | (SB extends true ? Num0To6 : Num1To7)
   | (SB extends true ? `${Num0To6}-${Num0To6}` : `${Num1To7}-${Num1To7}`)
-  | (SB extends true ? `*/${Num1To6}` : `*/${Num1To7}`)
-  | (SB extends true ? `${Num0To6}/${Num1To6}` : `${Num1To7}/${Num1To7}`);
+  | (SB extends true ? `*/${Num0To6}` : `*/${Num1To7}`)
+  | (SB extends true ? `${Num0To6}/${Num0To6}` : `${Num1To7}/${Num1To7}`);
 
 //
 // ──────────────────────────────────────────────────────────────────────────────
@@ -235,46 +244,381 @@ type Dow_Atom<SB extends boolean> =
 //    E.g. "5,10-15,*/2,30".
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** A comma-separated list of minute tokens: */
-type MinuteField =
-  | Minute_Atom
-  | `${Minute_Atom},${MinuteField}`;
+/** A comma-separated list of minute tokens */
+type MinuteField = string & {
+  // This uses a type assertion to indicate this is a valid minute field
+  // Actual validation would happen at runtime
+  _minuteFieldBrand: never;
+};
 
-/** A comma-separated list of hour tokens: */
-type HourField =
-  | Hour_Atom
-  | `${Hour_Atom},${HourField}`;
+/** A comma-separated list of hour tokens */
+type HourField = string & {
+  _hourFieldBrand: never;
+};
 
-/** A comma-separated list of day-of-month tokens: */
-type DomField =
-  | Dom_Atom
-  | `${Dom_Atom},${DomField}`;
+/** A comma-separated list of day-of-month tokens */
+type DomField = string & {
+  _domFieldBrand: never;
+};
 
-/** A comma-separated list of month tokens: */
-type MonthField =
-  | Month_Atom
-  | `${Month_Atom},${MonthField}`;
+/** A comma-separated list of month tokens */
+type MonthField = string & {
+  _monthFieldBrand: never;
+};
 
-/** A comma-separated list of day-of-week tokens (param'd by SB): */
-type DowField<SB extends boolean> =
-  | Dow_Atom<SB>
-  | `${Dow_Atom<SB>},${DowField<SB>}`;
+/** A comma-separated list of day-of-week tokens (param'd by SB) */
+type DowField<SB extends boolean = false> = string & {
+  _dowFieldBrand: never;
+};
 
 //
 // ──────────────────────────────────────────────────────────────────────────────
 // 4) Glue the five fields together with exactly one space each.
-//    CronTabExpression<SB> = "<minute> <hour> <dom> <month> <dow>".
+//    CronTabExpressionString<SB> = "<minute> <hour> <dom> <month> <dow>".
 // ──────────────────────────────────────────────────────────────────────────────
 
 /**
- * CronTabExpression<SB>:
+ * CronTabExpressionString<SB>:
  *
  * - SB = true  => interpret Sunday as "0" in day-of-week.
  * - SB = false => interpret Sunday as "1" in day-of-week.
  *
  * Examples:
- *   type A = CronTabExpression<true>;  // "15 0 1-10 * 0" is valid
- *   type B = CronTabExpression<false>; // "0 0 * * 7" is valid
+ *   type A = CronTabExpressionString<true>;  // "15 0 1-10 * 0" is valid
+ *   type B = CronTabExpressionString<false>; // "0 0 * * 7" is valid
  */
-export type CronTabExpression<SB extends boolean> =
+export type CronTabExpressionString<SB extends boolean = false> =
   `${MinuteField} ${HourField} ${DomField} ${MonthField} ${DowField<SB>}`;
+
+function convertHourField(hourField: string, timezoneOffset: number): string {
+  const hourParts = hourField.split(",");
+  const convertedHours = hourParts.flatMap((part) => {
+    if (part === "*") return ["*"];
+
+    if (part.includes("-")) {
+      let [start, end] = part.split("-").map(Number);
+      start = (start - timezoneOffset + 24) % 24;
+      end = (end - timezoneOffset + 24) % 24;
+
+      if (start === end) {
+        // Simplify identical start-end ranges, e.g., 3-3 => 3
+        return [`${start}`];
+      } else if (start < end) {
+        return [`${start}-${end}`];
+      } else {
+        // Handle wrap-around by splitting into two ranges
+        const firstRange = start === 23 ? "23" : `${start}-23`;
+        return [firstRange, `0-${end}`];
+      }
+    }
+
+    const singleHour = (Number(part) - timezoneOffset + 24) % 24;
+    return [singleHour.toString()];
+  });
+
+  return convertedHours.join(",");
+}
+
+export class CronTabExpression {
+  private static readonly FIELD_NAMES = [
+    "minute",
+    "hour",
+    "day of month",
+    "month",
+    "day of week",
+  ] as const;
+
+  private static readonly MONTH_NAMES = [
+    "JAN",
+    "FEB",
+    "MAR",
+    "APR",
+    "MAY",
+    "JUN",
+    "JUL",
+    "AUG",
+    "SEP",
+    "OCT",
+    "NOV",
+    "DEC",
+  ] as const;
+
+  private static readonly DAY_NAMES = [
+    "SUN",
+    "MON",
+    "TUE",
+    "WED",
+    "THU",
+    "FRI",
+    "SAT",
+  ] as const;
+
+  private readonly parts: string[];
+
+  constructor(
+    public expression: CronTabExpressionString<false>,
+    public offset?: number, // timezone UTC offset in hours
+  ) {
+    this.offset = offset ?? getLocalUTCOffset();
+    this.parts = expression.split(/\s+/);
+    this.validate();
+  }
+
+  static fromNaturalLanguageSchedule(
+    nlSchedule: string,
+    offset?: number,
+  ): CronTabExpression {
+    const expressionString = getCronTabExpressionForNaturalLanguageSchedule(
+      nlSchedule,
+    );
+    return new CronTabExpression(expressionString, offset);
+  }
+
+  private validate(): void {
+    if (this.parts.length !== 5) {
+      throw new Error(
+        `Invalid cron expression: expected 5 fields, got ${this.parts.length}`,
+      );
+    }
+
+    this.validateField(0, this.validateMinute);
+    this.validateField(1, this.validateHour);
+    this.validateField(2, this.validateDayOfMonth);
+    this.validateField(3, this.validateMonth);
+    this.validateField(4, this.validateDayOfWeek);
+  }
+
+  private validateField(
+    index: number,
+    validator: (value: string) => boolean,
+  ): void {
+    const value = this.parts[index];
+    if (!validator.call(this, value)) {
+      throw new Error(
+        `Invalid ${CronTabExpression.FIELD_NAMES[index]} field: ${value}`,
+      );
+    }
+  }
+
+  private validateMinute(value: string): boolean {
+    return this.validateRange(value, 0, 59);
+  }
+
+  private validateHour(value: string): boolean {
+    return this.validateRange(value, 0, 23);
+  }
+
+  private validateDayOfMonth(value: string): boolean {
+    if (value === "?") return true; // ? is allowed in some cron implementations
+    if (value === "L") return true; // Last day of month
+    if (value.endsWith("W")) {
+      return this.validateRange(value.slice(0, -1), 1, 31); // Weekday
+    }
+    if (value.includes("L-")) {
+      return this.validateRange(value.split("-")[1], 1, 31); // Days before last day
+    }
+    return this.validateRange(value, 1, 31);
+  }
+
+  private validateMonth(value: string): boolean {
+    if (value === "*") return true;
+
+    // Support month names (case insensitive)
+    if (CronTabExpression.MONTH_NAMES.some((m) => m === value.toUpperCase())) {
+      return true;
+    }
+
+    return this.validateRange(value, 1, 12);
+  }
+
+  private validateDayOfWeek(value: string): boolean {
+    if (value === "?") return true; // ? is allowed in some cron implementations
+    if (value === "L") return true; // Last day of week
+
+    if (value.endsWith("L")) {
+      return this.validateRange(
+        value.slice(0, -1),
+        0,
+        7,
+      );
+    }
+
+    if (value.includes("#")) {
+      const [day, week] = value.split("#");
+      return (
+        this.validateRange(
+          day,
+          0, // 0 for Sunday in zero-based systems
+          6, // 6 for Saturday in zero-based systems
+        ) && this.validateRange(week, 1, 5)
+      );
+    }
+
+    // Support day names (case insensitive)
+    if (CronTabExpression.DAY_NAMES.some((d) => d === value.toUpperCase())) {
+      return true;
+    }
+
+    return this.validateRange(
+      value,
+      0, // 0 for Sunday in zero-based systems
+      6, // 6 for Saturday in zero-based systems
+    );
+  }
+
+  private validateRange(
+    value: string,
+    min: number,
+    max: number,
+  ): boolean {
+    // Handle wildcards and steps
+    if (value === "*") return true;
+
+    // Handle step values (e.g., */5, 1-10/2)
+    if (value.includes("/")) {
+      const [range, step] = value.split("/");
+      const stepNum = parseInt(step, 10);
+      if (isNaN(stepNum) || stepNum < 1) {
+        return false;
+      }
+      if (range === "*") return true;
+      return this.validateRangePart(range, min, max);
+    }
+
+    return this.validateRangePart(value, min, max);
+  }
+
+  private validateRangePart(value: string, min: number, max: number): boolean {
+    // Handle ranges (e.g., 1-5, 10-15)
+    if (value.includes("-")) {
+      const [start, end] = value.split("-").map(Number);
+      return (
+        !isNaN(start) &&
+        !isNaN(end) &&
+        start >= min &&
+        end <= max &&
+        start <= end
+      );
+    }
+
+    // Handle comma-separated values (e.g., 1,2,3 or MON,WED,FRI)
+    if (value.includes(",")) {
+      return value.split(",").every((v) => {
+        // Check if it's a named day/month
+        if (isNaN(Number(v))) {
+          const vD = v
+            .toUpperCase() as (typeof CronTabExpression.DAY_NAMES)[number];
+          const vM = v
+            .toUpperCase() as (typeof CronTabExpression.MONTH_NAMES)[number];
+          return (
+            CronTabExpression.DAY_NAMES.includes(vD) ||
+            CronTabExpression.MONTH_NAMES.includes(vM)
+          );
+        }
+        // Check numeric range
+        const num = parseInt(v, 10);
+        return !isNaN(num) && num >= min && num <= max;
+      });
+    }
+
+    // Handle single value
+    const num = parseInt(value, 10);
+    return !isNaN(num) && num >= min && num <= max;
+  }
+
+  public toString(): string {
+    return this.expression;
+  }
+
+  getLocalUTCOffset(): number {
+    return getLocalUTCOffset();
+  }
+
+  /**
+   * Convert a day‐of‐week integer between:
+   *   • 1-based (Sunday=1, Monday=2, …, Saturday=7)
+   *   • 0-based (Sunday=0, Monday=1, …, Saturday=6)
+   *
+   * @param dayOfWeek   The input day index (1–7 if sundayIs=1, or 0–6 if sundayIs=0)
+   * @param sundayIs Either 1 (meaning input is 1-based) or 0 (meaning input is 0-based).
+   *                 Defaults to 1.
+   * @returns        The same weekday, in the opposite indexing scheme:
+   *                 • If sundayIs=1 (input was 1–7), returns 0–6
+   *                 • If sundayIs=0 (input was 0–6), returns 1–7
+   *
+   * @example
+   *   convert(5, 1)  // input=5 (Thursday in 1-based), returns 4 (Thursday in 0-based)
+   *   convert(5, 0)  // input=5 (Friday in 0-based),  returns 6 (Saturday in 1-based)? No—see below.
+   *
+   * Note: If sundayIs=0, we expect dayOfWeek ∈ [0,6], so convert(5,0) → (5+1)=6 (Friday→Saturday? Actually Friday=5→1-based=6).
+   */
+  convertDayOfWeekToBase(dayOfWeek: number, sundayIs = 0): number {
+    if (sundayIs === 1) {
+      // Input is 1-based (1=Sun…7=Sat). Output should be 0-based (0=Sun…6=Sat).
+      // Formula: (dayOfWeek + 6) % 7
+      //   1→0, 2→1, …, 7→6
+      if (dayOfWeek < 1 || dayOfWeek > 7) {
+        throw new Error(
+          `When sundayIs=1, dayOfWeek must be 1–7. Got: ${dayOfWeek}`,
+        );
+      }
+      return (dayOfWeek + 6) % 7;
+    } else {
+      // sundayIs === 0: Input is 0-based (0=Sun…6=Sat). Output should be 1-based (1=Sun…7=Sat).
+      // Formula: dayOfWeek + 1
+      //   0→1, 1→2, …, 6→7
+      if (dayOfWeek < 0 || dayOfWeek > 6) {
+        throw new Error(
+          `When sundayIs=0, dayOfWeek must be 0–6. Got: ${dayOfWeek}`,
+        );
+      }
+      return dayOfWeek + 1;
+    }
+  }
+
+  format(
+    options: {
+      sundayIs: number;
+      toOffset: number;
+    } = {
+      sundayIs: 1,
+      toOffset: this.getLocalUTCOffset(),
+    },
+  ): string {
+    const { sundayIs, toOffset } = options;
+    const parts = this.expression.split(" ");
+    const [minute, hx, dayOfMonth, month, dx] = parts;
+    if (parts.length !== 5) {
+      throw new Error("Invalid cron expression format: expected 5 parts.");
+    }
+    const hours = convertHourField(hx, this.offset - toOffset);
+    const dayOfWeek = this.convertDayOfWeekToBase(parseInt(dx, 10), sundayIs);
+    return [
+      minute,
+      hours,
+      dayOfMonth,
+      month,
+      dayOfWeek,
+    ].join(" ");
+  }
+
+  public toDenoCronSchedule(): Deno.CronSchedule {
+    const p = this.format({
+      sundayIs: 1,
+      toOffset: 0,
+    });
+    const minute = p[0] as Deno.CronSchedule["minute"];
+    const hour = p[1] as Deno.CronSchedule["hour"];
+    const dayOfMonth = p[2] as Deno.CronSchedule["dayOfMonth"];
+    const month = p[3] as Deno.CronSchedule["month"];
+    const dayOfWeek = p[4] as Deno.CronSchedule["dayOfWeek"];
+
+    return {
+      minute,
+      hour,
+      dayOfMonth,
+      month,
+      dayOfWeek,
+    };
+  }
+}

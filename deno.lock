@@ -1,5 +1,5 @@
 {
-  "version": "4",
+  "version": "5",
   "specifiers": {
     "jsr:@cliffy/ansi@1.0.0-rc.7": "1.0.0-rc.7",
     "jsr:@cliffy/command@1.0.0-rc.7": "1.0.0-rc.7",
@@ -16,7 +16,8 @@
     "jsr:@std/internal@^1.0.5": "1.0.5",
     "jsr:@std/io@~0.224.9": "0.224.9",
     "jsr:@std/path@~1.0.6": "1.0.8",
-    "jsr:@std/text@~1.0.7": "1.0.10"
+    "jsr:@std/text@~1.0.7": "1.0.10",
+    "npm:@types/node@*": "22.15.15"
   },
   "jsr": {
     "@cliffy/ansi@1.0.0-rc.7": {
@@ -95,6 +96,17 @@
     },
     "@std/text@1.0.10": {
       "integrity": "9dcab377450253c0efa9a9a0c731040bfd4e1c03f8303b5934381467b7954338"
+    }
+  },
+  "npm": {
+    "@types/node@22.15.15": {
+      "integrity": "sha512-R5muMcZob3/Jjchn5LcO8jdKwSCbzqmPB6ruBxMcf9kbxtniZHP327s6C37iOfuw8mbKK3cAQa7sEl7afLrQ8A==",
+      "dependencies": [
+        "undici-types"
+      ]
+    },
+    "undici-types@6.21.0": {
+      "integrity": "sha512-iwDZqg0QAGrg9Rav5H4n0M64c3mkR59cJ6wQp+7C4nI0gsmExaedaYLNO44eT4AtBBwjbTiGPMlt2Md0T9H9JQ=="
     }
   },
   "workspace": {
