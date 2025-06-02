@@ -46,7 +46,7 @@ export function validateJobLabel(label: string): boolean {
  * @property {LogLevel} [logLevel] - Log level for cronx's internal logging
  */
 interface ScheduleExecutableOptions {
-  cronTabExpression?: CronTabExpressionString;
+  cronTabExpression?: CronTabExpressionString | CronTabExpression;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number; // timezone utc offset in hours
@@ -74,9 +74,9 @@ interface ScheduleExecutableOptions {
  * }
  * ```
  */
-interface ScheduleExecutableOptionsWithcronTabExpression
+interface ScheduleExecutableOptionsWithCronTabExpression
   extends ScheduleExecutableOptions {
-  cronTabExpression: CronTabExpressionString;
+  cronTabExpression: CronTabExpressionString | CronTabExpression;
   naturalLanguageSchedule?: never;
 }
 
@@ -140,7 +140,7 @@ export function scheduleCronWithExecutable(
   job: string,
   opt:
     | ScheduleExecutableOptionsWithNaturalLanguageExpression
-    | ScheduleExecutableOptionsWithcronTabExpression,
+    | ScheduleExecutableOptionsWithCronTabExpression,
 ) {
   const { suppressStdout, suppressStderr, jobLogger } = opt;
   let exp = {} as CronTabExpression;
@@ -148,7 +148,11 @@ export function scheduleCronWithExecutable(
   const offset = opt?.offset ?? getLocalUTCOffset();
 
   if (opt.cronTabExpression) {
-    exp = new CronTabExpression(opt.cronTabExpression, offset);
+    if (opt.cronTabExpression instanceof CronTabExpression) {
+      exp = opt.cronTabExpression;
+    } else {
+      exp = new CronTabExpression(opt.cronTabExpression, offset);
+    }
   } else {
     exp = CronTabExpression.fromNaturalLanguageSchedule(
       opt.naturalLanguageSchedule,
@@ -191,7 +195,7 @@ export function scheduleCronWithExecutable(
  * @property {LogLevel} [logLevel] - Log level for cronx's internal logging
  */
 interface ScheduleFunctionOptions {
-  cronTabExpression?: CronTabExpressionString;
+  cronTabExpression?: CronTabExpressionString | CronTabExpression;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number;
@@ -286,6 +290,9 @@ export function scheduleCronWithFunction(
   const offset = opt?.offset ?? getLocalUTCOffset();
 
   if (opt.cronTabExpression) {
+    if (opt.cronTabExpression instanceof CronTabExpression) {
+      exp = opt.cronTabExpression;
+    }
     exp = new CronTabExpression(
       opt.cronTabExpression as CronTabExpressionString,
       offset,
