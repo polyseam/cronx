@@ -1,7 +1,8 @@
 {
   "name": "@polyseam/cronx",
 
-  "version": "1.1.0",
+  "version": "2.0.0",
+  "deno_version": "2.3.5",
 
   "description": "Cross-Platform CLI and Library for working with Cron Jobs",
 
@@ -9,13 +10,11 @@
 
   "exports": {
     ".": "./src/cronx.ts",
-    "./nlp": "./src/nlp.ts",
-    "./cron": "./src/cron.ts",
     "./cli": "./main.ts"
   },
 
   "tasks": {
-    "run": "deno run --unstable-cron --allow-run main.ts",
+    "start": "deno run --unstable-cron --allow-run main.ts",
 
     "checks": {
       "command": "deno lint && deno check . && deno fmt --check"

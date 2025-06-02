@@ -9,17 +9,18 @@
 
 import { cconsole } from "cconsole";
 
-import {
-  convertCronxExpressionToDenoCronExpression,
-  getLocalUTCOffset,
-} from "./cron.ts";
-
 import { runExecutable } from "src/executables.ts";
 
 import type { Logger } from "./JobLogger.ts";
 import type { LogLevel } from "@polyseam/cconsole";
 
-import { getCronTabExpressionForNaturalLanguageSchedule } from "./nlp.ts";
+import {
+  CronTabExpression,
+  type CronTabExpressionString,
+  getLocalUTCOffset,
+} from "./CronTabExpression.ts";
+
+export { CronTabExpression, type CronTabExpressionString };
 
 /**
  * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
@@ -33,8 +34,21 @@ export function validateJobLabel(label: string): boolean {
   return (/^[a-zA-Z0-9\s\-_]+$/.test(label));
 }
 
+/**
+ * Options for scheduling an executable command with cron.
+ *
+ * @interface ScheduleExecutableOptions
+ * @property {CronTabExpressionString} [cronTabExpression] - The cron expression defining the schedule (e.g., "0 0 * * *")
+ * @property {string} [naturalLanguageSchedule] - A natural language description of the schedule (e.g., "every day at midnight")
+ * @property {string} [label] - Custom label for the job (must be alphanumeric with allowed special characters)
+ * @property {number} [offset] - Timezone UTC offset in hours (e.g., -5 for EST, +1 for CET)
+ * @property {boolean} [suppressStdout] - Whether to suppress standard output from the executable
+ * @property {boolean} [suppressStderr] - Whether to suppress standard error from the executable
+ * @property {Logger} [jobLogger] - Custom logger for job execution output
+ * @property {LogLevel} [logLevel] - Log level for cronx's internal logging
+ */
 interface ScheduleExecutableOptions {
-  cronxExpression?: string;
+  cronTabExpression?: CronTabExpressionString | CronTabExpression;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number; // timezone utc offset in hours
@@ -44,14 +58,52 @@ interface ScheduleExecutableOptions {
   logLevel?: LogLevel;
 }
 
-interface ScheduleExecutableOptionsWithCronxExpression
+/**
+ * Options for scheduling an executable command with a cron tab expression.
+ * This interface requires the cronTabExpression property and disallows naturalLanguageSchedule.
+ *
+ * @interface ScheduleExecutableOptionsWithcronTabExpression
+ * @extends ScheduleExecutableOptions
+ * @property {CronTabExpressionString} cronTabExpression - The cron expression defining the schedule (required)
+ * @property {never} [naturalLanguageSchedule] - Not allowed when using cronTabExpression
+ *
+ * @example
+ * ```ts
+ * {
+ *   cronTabExpression: "0 0 * * *", // Every day at midnight
+ *   label: "daily-job",
+ *   offset: -5 // EST timezone
+ * }
+ * ```
+ */
+interface ScheduleExecutableOptionsWithCronTabExpression
   extends ScheduleExecutableOptions {
-  cronxExpression: string;
+  cronTabExpression: CronTabExpressionString | CronTabExpression;
+  naturalLanguageSchedule?: never;
 }
 
+/**
+ * Options for scheduling an executable command with a natural language expression.
+ * This interface requires the naturalLanguageSchedule property and disallows cronTabExpression.
+ *
+ * @interface ScheduleExecutableOptionsWithNaturalLanguageExpression
+ * @extends ScheduleExecutableOptions
+ * @property {string} naturalLanguageSchedule - Natural language description of the schedule (required)
+ * @property {never} [cronTabExpression] - Not allowed when using naturalLanguageSchedule
+ *
+ * @example
+ * ```ts
+ * {
+ *   naturalLanguageSchedule: "every day at midnight",
+ *   label: "daily-job",
+ *   offset: -5 // EST timezone
+ * }
+ * ```
+ */
 interface ScheduleExecutableOptionsWithNaturalLanguageExpression
   extends ScheduleExecutableOptions {
   naturalLanguageSchedule: string;
+  cronTabExpression?: never;
 }
 
 /**
@@ -63,31 +115,53 @@ interface ScheduleExecutableOptionsWithNaturalLanguageExpression
  * @param opt.suppressStdout - Whether to suppress stdout
  * @param opt.suppressStderr - Whether to suppress stderr
  * @param opt.jobLogger - Optional custom logger function for job execution
- * @param opt.cronxExpression - The cron expression defining the schedule
+ * @param opt.cronTabExpression - The cron expression defining the schedule
+ * @param opt.naturalLanguageSchedule - Natural language description of when to run the job
  * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
  * @param opt.label - Optional custom label for the job (must be alphanumeric with allowed special characters)
  *
  * @throws {Error} If the provided or generated label is invalid
+ * @throws {Error} If neither cronTabExpression nor naturalLanguageSchedule is provided (when using naturalLanguageSchedule option)
  *
  * @example
+ * // Using cron expression
  * scheduleCronWithExecutable('npm run build', {
- *   cronxExpression: '0 0 * * *',
- *   label: 'daily-build'
+ *   cronTabExpression: '0 0 * * *', // Run at midnight every day
+ *   label: 'daily-build',
+ *   suppressStderr: true
+ * });
+ *
+ * // Using natural language
+ * scheduleCronWithExecutable('node cleanup.js', {
+ *   naturalLanguageSchedule: 'every Sunday at 2:30 am',
+ *   label: 'weekly-cleanup',
+ *   offset: -5 // EST timezone
  * });
  */
 export function scheduleCronWithExecutable(
   job: string,
   opt:
     | ScheduleExecutableOptionsWithNaturalLanguageExpression
-    | ScheduleExecutableOptionsWithCronxExpression,
+    | ScheduleExecutableOptionsWithCronTabExpression,
 ) {
   const { suppressStdout, suppressStderr, jobLogger } = opt;
-  const cronxExpression = opt?.cronxExpression ??
-    getCronTabExpressionForNaturalLanguageSchedule(
-      opt.naturalLanguageSchedule!,
-    );
+  let exp = {} as CronTabExpression;
 
   const offset = opt?.offset ?? getLocalUTCOffset();
+
+  if (opt.cronTabExpression) {
+    if (opt.cronTabExpression instanceof CronTabExpression) {
+      exp = opt.cronTabExpression;
+    } else {
+      exp = new CronTabExpression(opt.cronTabExpression, offset);
+    }
+  } else {
+    exp = CronTabExpression.fromNaturalLanguageSchedule(
+      opt.naturalLanguageSchedule,
+      offset,
+    );
+  }
+
   const logLevel = opt?.logLevel ?? "INFO";
 
   cconsole.setLogLevel(logLevel);
@@ -107,28 +181,67 @@ export function scheduleCronWithExecutable(
     );
   }
 
-  const denoCronExpression = convertCronxExpressionToDenoCronExpression(
-    cronxExpression,
-    offset,
-  );
-
-  Deno.cron(label, denoCronExpression, async () => {
+  Deno.cron(label, exp.toDenoCronSchedule(), async () => {
     await runExecutable(job, { suppressStdout, suppressStderr, jobLogger });
   });
 }
 
+/**
+ * Options for scheduling a function with cron.
+ *
+ * @interface ScheduleFunctionOptions
+ * @property {CronTabExpressionString} [cronTabExpression] - The cron expression defining the schedule (e.g., "0 0 * * *")
+ * @property {string} [naturalLanguageSchedule] - A natural language description of the schedule (e.g., "every day at midnight")
+ * @property {string} [label] - Custom label for the job (defaults to function name if not provided)
+ * @property {number} [offset] - Timezone UTC offset in hours (e.g., -5 for EST, +1 for CET)
+ * @property {LogLevel} [logLevel] - Log level for cronx's internal logging
+ */
 interface ScheduleFunctionOptions {
-  cronxExpression?: string;
+  cronTabExpression?: CronTabExpressionString | CronTabExpression;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number;
   logLevel?: LogLevel;
 }
 
-interface ScheduleFunctionOptionsWithCronxExpression
+/**
+ * Options for scheduling a function with a cron tab expression.
+ * This interface requires the cronTabExpression property.
+ *
+ * @interface ScheduleFunctionOptionsWithCronTabExpression
+ * @extends ScheduleFunctionOptions
+ * @property {CronTabExpressionString} cronTabExpression - The cron expression defining the schedule (required)
+ *
+ * @example
+ * ```ts
+ * {
+ *   cronTabExpression: "0 0 * * *", // Every day at midnight
+ *   label: "daily-job",
+ *   offset: -5 // EST timezone
+ * }
+ * ```
+ */
+interface ScheduleFunctionOptionsWithCronTabExpression
   extends ScheduleFunctionOptions {
-  cronxExpression: string;
+  cronTabExpression: CronTabExpressionString;
 }
+/**
+ * Options for scheduling a function with a natural language expression.
+ * This interface requires the naturalLanguageExpression property.
+ *
+ * @interface ScheduleFunctionOptionsWithNaturalLanguageExpression
+ * @extends ScheduleFunctionOptions
+ * @property {string} naturalLanguageExpression - Natural language description of the schedule (required)
+ *
+ * @example
+ * ```ts
+ * {
+ *   naturalLanguageExpression: "every day at midnight",
+ *   label: "daily-job",
+ *   offset: -5 // EST timezone
+ * }
+ * ```
+ */
 interface ScheduleFunctionOptionsWithNaturalLanguageExpression
   extends ScheduleFunctionOptions {
   naturalLanguageExpression: string;
@@ -139,17 +252,31 @@ interface ScheduleFunctionOptionsWithNaturalLanguageExpression
  *
  * @param jobFn - The async function to be executed on the cron schedule
  * @param opt - Configuration options for the cron schedule
- * @param opt.cronxExpression - The cron expression defining when the job should run
+ * @param opt.cronTabExpression - The cron expression defining when the job should run
  * @param opt.naturalLanguageExpression - A natural language expression defining when the job should run
  * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
  * @param opt.label - Optional label for the cron job (defaults to function name)
+ * @param opt.logLevel - Optional log level for cronx's internal logging (defaults to "INFO")
+ *
+ * @throws {Error} If neither cronTabExpression nor naturalLanguageSchedule is provided
  *
  * @example
  * ```ts
+ * // Using cron expression
+ * scheduleCronWithFunction(async () => {
+ *   // your job logic here
+ *   await fetchData();
+ *   await processResults();
+ * }, {
+ *   cronTabExpression: "0 0 * * *", // Run at midnight every day
+ *   label: "daily-job"
+ * });
+ *
+ * // Using natural language
  * scheduleCronWithFunction(async () => {
  *   // your job logic here
  * }, {
- *   cronxExpression: "0 0 * * *",
+ *   naturalLanguageSchedule: "every day at midnight",
  *   label: "daily-job"
  * });
  * ```
@@ -157,15 +284,31 @@ interface ScheduleFunctionOptionsWithNaturalLanguageExpression
 export function scheduleCronWithFunction(
   jobFn: () => Promise<void>,
   opt:
-    | ScheduleFunctionOptionsWithCronxExpression
+    | ScheduleFunctionOptionsWithCronTabExpression
     | ScheduleFunctionOptionsWithNaturalLanguageExpression,
 ) {
-  const expression = opt?.cronxExpression ??
-    getCronTabExpressionForNaturalLanguageSchedule(
-      opt.naturalLanguageSchedule!,
-    );
+  let exp = {} as CronTabExpression;
 
-  const offset = opt.offset ?? getLocalUTCOffset();
+  const offset = opt?.offset ?? getLocalUTCOffset();
+
+  if (opt.cronTabExpression) {
+    if (opt.cronTabExpression instanceof CronTabExpression) {
+      exp = opt.cronTabExpression;
+    }
+    exp = new CronTabExpression(
+      opt.cronTabExpression as CronTabExpressionString,
+      offset,
+    );
+  } else if (opt.naturalLanguageSchedule) {
+    exp = CronTabExpression.fromNaturalLanguageSchedule(
+      opt.naturalLanguageSchedule,
+      offset,
+    );
+  } else {
+    throw new Error(
+      'cronx: either "cronTabExpression" or "naturalLanguageSchedule" must be provided',
+    );
+  }
 
   const label = opt.label ?? jobFn.name;
 
@@ -173,12 +316,7 @@ export function scheduleCronWithFunction(
 
   cconsole.setLogLevel(logLevel);
 
-  const denoCronExpression = convertCronxExpressionToDenoCronExpression(
-    expression,
-    offset,
-  );
-
-  Deno.cron(label, denoCronExpression, async () => {
+  Deno.cron(label, exp.toDenoCronSchedule(), async () => {
     cconsole.debug();
     cconsole.debug("Running function job: " + label);
     cconsole.debug();
