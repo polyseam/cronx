@@ -2,6 +2,7 @@
   "name": "@polyseam/cronx",
 
   "version": "2.0.0",
+  "deno_version": "2.3.5",
 
   "description": "Cross-Platform CLI and Library for working with Cron Jobs",
 
