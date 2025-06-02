@@ -38,7 +38,7 @@ export function validateJobLabel(label: string): boolean {
  * Options for scheduling an executable command with cron.
  *
  * @interface ScheduleExecutableOptions
- * @property {CronTabExpressionString} [cronTabExpression] - The cron expression defining the schedule (e.g., "0 0 * * *")
+ * @property {CronTabExpressionString | CronTabExpression} [cronTabExpression] - The cron expression defining the schedule (e.g., "0 0 * * *")
  * @property {string} [naturalLanguageSchedule] - A natural language description of the schedule (e.g., "every day at midnight")
  * @property {string} [label] - Custom label for the job (must be alphanumeric with allowed special characters)
  * @property {number} [offset] - Timezone UTC offset in hours (e.g., -5 for EST, +1 for CET)
@@ -64,7 +64,7 @@ interface ScheduleExecutableOptions {
  *
  * @interface ScheduleExecutableOptionsWithcronTabExpression
  * @extends ScheduleExecutableOptions
- * @property {CronTabExpressionString} cronTabExpression - The cron expression defining the schedule (required)
+ * @property {CronTabExpressionString|CronTabExpression} cronTabExpression - The cron expression defining the schedule (required)
  * @property {never} [naturalLanguageSchedule] - Not allowed when using cronTabExpression
  *
  * @example
@@ -190,7 +190,7 @@ export function scheduleCronWithExecutable(
  * Options for scheduling a function with cron.
  *
  * @interface ScheduleFunctionOptions
- * @property {CronTabExpressionString} [cronTabExpression] - The cron expression defining the schedule (e.g., "0 0 * * *")
+ * @property {CronTabExpressionString|CronTabExpression} [cronTabExpression] - The cron expression defining the schedule (e.g., "0 0 * * *")
  * @property {string} [naturalLanguageSchedule] - A natural language description of the schedule (e.g., "every day at midnight")
  * @property {string} [label] - Custom label for the job (defaults to function name if not provided)
  * @property {number} [offset] - Timezone UTC offset in hours (e.g., -5 for EST, +1 for CET)
@@ -210,7 +210,7 @@ interface ScheduleFunctionOptions {
  *
  * @interface ScheduleFunctionOptionsWithCronTabExpression
  * @extends ScheduleFunctionOptions
- * @property {CronTabExpressionString} cronTabExpression - The cron expression defining the schedule (required)
+ * @property {CronTabExpressionString|CronTabExpression} cronTabExpression - The cron expression defining the schedule (required)
  *
  * @example
  * ```ts
@@ -223,7 +223,8 @@ interface ScheduleFunctionOptions {
  */
 interface ScheduleFunctionOptionsWithCronTabExpression
   extends ScheduleFunctionOptions {
-  cronTabExpression: CronTabExpressionString;
+  cronTabExpression: CronTabExpressionString | CronTabExpression;
+  naturalLanguageSchedule?: never;
 }
 /**
  * Options for scheduling a function with a natural language expression.
@@ -231,12 +232,13 @@ interface ScheduleFunctionOptionsWithCronTabExpression
  *
  * @interface ScheduleFunctionOptionsWithNaturalLanguageExpression
  * @extends ScheduleFunctionOptions
- * @property {string} naturalLanguageExpression - Natural language description of the schedule (required)
+ * @property {string} naturalLanguageSchedule - Natural language description of the schedule (required)
+ * @property {never} [cronTabExpression] - Not allowed when using naturalLanguageSchedule
  *
  * @example
  * ```ts
  * {
- *   naturalLanguageExpression: "every day at midnight",
+ *   naturalLanguageSchedule: "every day at midnight",
  *   label: "daily-job",
  *   offset: -5 // EST timezone
  * }
@@ -244,7 +246,8 @@ interface ScheduleFunctionOptionsWithCronTabExpression
  */
 interface ScheduleFunctionOptionsWithNaturalLanguageExpression
   extends ScheduleFunctionOptions {
-  naturalLanguageExpression: string;
+  naturalLanguageSchedule: string;
+  cronTabExpression?: never;
 }
 
 /**
@@ -253,7 +256,7 @@ interface ScheduleFunctionOptionsWithNaturalLanguageExpression
  * @param jobFn - The async function to be executed on the cron schedule
  * @param opt - Configuration options for the cron schedule
  * @param opt.cronTabExpression - The cron expression defining when the job should run
- * @param opt.naturalLanguageExpression - A natural language expression defining when the job should run
+ * @param opt.naturalLanguageSchedule - A natural language expression defining when the job should run
  * @param opt.offset - Optional timezone offset in hours (defaults to local timezone offset)
  * @param opt.label - Optional label for the cron job (defaults to function name)
  * @param opt.logLevel - Optional log level for cronx's internal logging (defaults to "INFO")
@@ -294,11 +297,12 @@ export function scheduleCronWithFunction(
   if (opt.cronTabExpression) {
     if (opt.cronTabExpression instanceof CronTabExpression) {
       exp = opt.cronTabExpression;
+    } else {
+      exp = new CronTabExpression(
+        opt.cronTabExpression as CronTabExpressionString,
+        offset,
+      );
     }
-    exp = new CronTabExpression(
-      opt.cronTabExpression as CronTabExpressionString,
-      offset,
-    );
   } else if (opt.naturalLanguageSchedule) {
     exp = CronTabExpression.fromNaturalLanguageSchedule(
       opt.naturalLanguageSchedule,
