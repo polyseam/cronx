@@ -113,9 +113,6 @@ export class CronTabExpression {
     const nlSchedule = getNaturalLanguageScheduleForCronTabExpression(
       this.expression,
     );
-    if (nlSchedule instanceof Error) {
-      throw nlSchedule;
-    }
     return nlSchedule;
   }
 
