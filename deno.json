@@ -10,7 +10,6 @@
   "exports": {
     ".": "./src/cronx.ts",
     "./nlp": "./src/nlp.ts",
-    "./cron": "./src/cron.ts",
     "./cli": "./main.ts"
   },
 

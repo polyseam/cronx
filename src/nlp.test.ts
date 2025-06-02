@@ -5,6 +5,8 @@ import {
   getNaturalLanguageScheduleForCronTabExpression,
 } from "./nlp.ts";
 
+import type { CronTabExpressionString } from "./CronTabExpression.ts";
+
 /**
  * Test suite for the getCronTabExpressionForNaturalLanguageSchedule
  *

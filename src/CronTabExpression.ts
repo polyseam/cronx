@@ -1,5 +1,8 @@
-import type { off } from "node:process";
-
+import { validateCronTabExpressionString } from "./validators.ts";
+import {
+  getCronTabExpressionForNaturalLanguageSchedule,
+  getNaturalLanguageScheduleForCronTabExpression,
+} from "@polyseam/cronx/nlp";
 /**
  * Gets the local timezone offset in hours.
  *
@@ -328,7 +331,7 @@ export class CronTabExpression {
     "day of week",
   ] as const;
 
-  private static readonly MONTH_NAMES = [
+  static readonly MONTH_NAMES = [
     "JAN",
     "FEB",
     "MAR",
@@ -343,7 +346,7 @@ export class CronTabExpression {
     "DEC",
   ] as const;
 
-  private static readonly DAY_NAMES = [
+  static readonly DAY_NAMES = [
     "SUN",
     "MON",
     "TUE",
@@ -355,9 +358,11 @@ export class CronTabExpression {
 
   private readonly parts: string[];
 
+  public offset: number;
+
   constructor(
     public expression: CronTabExpressionString<false>,
-    public offset?: number, // timezone UTC offset in hours
+    offset?: number, // timezone UTC offset in hours
   ) {
     this.offset = offset ?? getLocalUTCOffset();
     this.parts = expression.split(/\s+/);
@@ -371,159 +376,24 @@ export class CronTabExpression {
     const expressionString = getCronTabExpressionForNaturalLanguageSchedule(
       nlSchedule,
     );
-    return new CronTabExpression(expressionString, offset);
-  }
-
-  private validate(): void {
-    if (this.parts.length !== 5) {
-      throw new Error(
-        `Invalid cron expression: expected 5 fields, got ${this.parts.length}`,
-      );
-    }
-
-    this.validateField(0, this.validateMinute);
-    this.validateField(1, this.validateHour);
-    this.validateField(2, this.validateDayOfMonth);
-    this.validateField(3, this.validateMonth);
-    this.validateField(4, this.validateDayOfWeek);
-  }
-
-  private validateField(
-    index: number,
-    validator: (value: string) => boolean,
-  ): void {
-    const value = this.parts[index];
-    if (!validator.call(this, value)) {
-      throw new Error(
-        `Invalid ${CronTabExpression.FIELD_NAMES[index]} field: ${value}`,
-      );
-    }
-  }
-
-  private validateMinute(value: string): boolean {
-    return this.validateRange(value, 0, 59);
-  }
-
-  private validateHour(value: string): boolean {
-    return this.validateRange(value, 0, 23);
-  }
-
-  private validateDayOfMonth(value: string): boolean {
-    if (value === "?") return true; // ? is allowed in some cron implementations
-    if (value === "L") return true; // Last day of month
-    if (value.endsWith("W")) {
-      return this.validateRange(value.slice(0, -1), 1, 31); // Weekday
-    }
-    if (value.includes("L-")) {
-      return this.validateRange(value.split("-")[1], 1, 31); // Days before last day
-    }
-    return this.validateRange(value, 1, 31);
-  }
-
-  private validateMonth(value: string): boolean {
-    if (value === "*") return true;
-
-    // Support month names (case insensitive)
-    if (CronTabExpression.MONTH_NAMES.some((m) => m === value.toUpperCase())) {
-      return true;
-    }
-
-    return this.validateRange(value, 1, 12);
-  }
-
-  private validateDayOfWeek(value: string): boolean {
-    if (value === "?") return true; // ? is allowed in some cron implementations
-    if (value === "L") return true; // Last day of week
-
-    if (value.endsWith("L")) {
-      return this.validateRange(
-        value.slice(0, -1),
-        0,
-        7,
-      );
-    }
-
-    if (value.includes("#")) {
-      const [day, week] = value.split("#");
-      return (
-        this.validateRange(
-          day,
-          0, // 0 for Sunday in zero-based systems
-          6, // 6 for Saturday in zero-based systems
-        ) && this.validateRange(week, 1, 5)
-      );
-    }
-
-    // Support day names (case insensitive)
-    if (CronTabExpression.DAY_NAMES.some((d) => d === value.toUpperCase())) {
-      return true;
-    }
-
-    return this.validateRange(
-      value,
-      0, // 0 for Sunday in zero-based systems
-      6, // 6 for Saturday in zero-based systems
+    return new CronTabExpression(
+      expressionString as CronTabExpressionString<false>,
+      offset,
     );
   }
 
-  private validateRange(
-    value: string,
-    min: number,
-    max: number,
-  ): boolean {
-    // Handle wildcards and steps
-    if (value === "*") return true;
-
-    // Handle step values (e.g., */5, 1-10/2)
-    if (value.includes("/")) {
-      const [range, step] = value.split("/");
-      const stepNum = parseInt(step, 10);
-      if (isNaN(stepNum) || stepNum < 1) {
-        return false;
-      }
-      if (range === "*") return true;
-      return this.validateRangePart(range, min, max);
+  toNaturalLanguageSchedule(): string {
+    const nlSchedule = getNaturalLanguageScheduleForCronTabExpression(
+      this.expression,
+    );
+    if (nlSchedule instanceof Error) {
+      throw nlSchedule;
     }
-
-    return this.validateRangePart(value, min, max);
+    return nlSchedule;
   }
 
-  private validateRangePart(value: string, min: number, max: number): boolean {
-    // Handle ranges (e.g., 1-5, 10-15)
-    if (value.includes("-")) {
-      const [start, end] = value.split("-").map(Number);
-      return (
-        !isNaN(start) &&
-        !isNaN(end) &&
-        start >= min &&
-        end <= max &&
-        start <= end
-      );
-    }
-
-    // Handle comma-separated values (e.g., 1,2,3 or MON,WED,FRI)
-    if (value.includes(",")) {
-      return value.split(",").every((v) => {
-        // Check if it's a named day/month
-        if (isNaN(Number(v))) {
-          const vD = v
-            .toUpperCase() as (typeof CronTabExpression.DAY_NAMES)[number];
-          const vM = v
-            .toUpperCase() as (typeof CronTabExpression.MONTH_NAMES)[number];
-          return (
-            CronTabExpression.DAY_NAMES.includes(vD) ||
-            CronTabExpression.MONTH_NAMES.includes(vM)
-          );
-        }
-        // Check numeric range
-        const num = parseInt(v, 10);
-        return !isNaN(num) && num >= min && num <= max;
-      });
-    }
-
-    // Handle single value
-    const num = parseInt(value, 10);
-    return !isNaN(num) && num >= min && num <= max;
+  private validate(): void {
+    validateCronTabExpressionString(this.expression);
   }
 
   public toString(): string {
@@ -582,7 +452,7 @@ export class CronTabExpression {
       toOffset: number;
     } = {
       sundayIs: 1,
-      toOffset: this.getLocalUTCOffset(),
+      toOffset: 0,
     },
   ): string {
     const { sundayIs, toOffset } = options;

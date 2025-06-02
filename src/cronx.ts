@@ -14,13 +14,11 @@ import { runExecutable } from "src/executables.ts";
 import type { Logger } from "./JobLogger.ts";
 import type { LogLevel } from "@polyseam/cconsole";
 
-import { getCronTabExpressionForNaturalLanguageSchedule } from "./nlp.ts";
 import {
   CronTabExpression,
   type CronTabExpressionString,
   getLocalUTCOffset,
 } from "./CronTabExpression.ts";
-import type { off } from "node:process";
 
 /**
  * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
@@ -95,7 +93,7 @@ export function scheduleCronWithExecutable(
     };
   } else {
     exp = {
-      ...new CronTabExpression.fromNaturalLanguageSchedule(
+      ...CronTabExpression.fromNaturalLanguageSchedule(
         opt.naturalLanguageSchedule,
         offset,
       ).toDenoCronSchedule(),
@@ -134,9 +132,9 @@ interface ScheduleFunctionOptions {
   logLevel?: LogLevel;
 }
 
-interface ScheduleFunctionOptionsWithcronTabExpression
+interface ScheduleFunctionOptionsWithCronTabExpression
   extends ScheduleFunctionOptions {
-  cronTabExpression: string;
+  cronTabExpression: CronTabExpressionString<false>;
 }
 interface ScheduleFunctionOptionsWithNaturalLanguageExpression
   extends ScheduleFunctionOptions {
@@ -166,15 +164,28 @@ interface ScheduleFunctionOptionsWithNaturalLanguageExpression
 export function scheduleCronWithFunction(
   jobFn: () => Promise<void>,
   opt:
-    | ScheduleFunctionOptionsWithcronTabExpression
+    | ScheduleFunctionOptionsWithCronTabExpression
     | ScheduleFunctionOptionsWithNaturalLanguageExpression,
 ) {
-  const expression = opt?.cronTabExpression ??
-    getCronTabExpressionForNaturalLanguageSchedule(
-      opt.naturalLanguageSchedule!,
-    );
+  let exp = {} as CronTabExpression;
 
-  const offset = opt.offset ?? getLocalUTCOffset();
+  const offset = opt?.offset ?? getLocalUTCOffset();
+
+  if (opt.cronTabExpression) {
+    exp = new CronTabExpression(
+      opt.cronTabExpression as CronTabExpressionString<false>,
+      offset,
+    );
+  } else if (opt.naturalLanguageSchedule) {
+    exp = CronTabExpression.fromNaturalLanguageSchedule(
+      opt.naturalLanguageSchedule,
+      offset,
+    );
+  } else {
+    throw new Error(
+      'cronx: either "cronTabExpression" or "naturalLanguageSchedule" must be provided',
+    );
+  }
 
   const label = opt.label ?? jobFn.name;
 
@@ -182,12 +193,7 @@ export function scheduleCronWithFunction(
 
   cconsole.setLogLevel(logLevel);
 
-  const schedule = new CronTabExpression(
-    expression,
-    offset,
-  ).toDenoCronSchedule();
-
-  Deno.cron(label, {}, async () => {
+  Deno.cron(label, exp.toDenoCronSchedule(), async () => {
     cconsole.debug();
     cconsole.debug("Running function job: " + label);
     cconsole.debug();

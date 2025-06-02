@@ -1,4 +1,7 @@
-import type { CronTabExpressionString } from "./CronTabExpression.ts";
+import {
+  CronTabExpression,
+  type CronTabExpressionString,
+} from "./CronTabExpression.ts";
 /**
  * This module provides utilities for working with natural language schedules and cron expressions.
  *
@@ -395,40 +398,34 @@ const PatternMatchers = {
  *
  * @throws {Error} If the natural language input cannot be parsed into a valid cron expression
  */
-export function getCronTabExpressionForNaturalLanguageSchedule(
+export function getCronTabExpressionForNaturalLanguageSchedule<
+  SB extends boolean = false,
+>(
   input: NaturalLanguageSchedule,
-): CronTabExpressionString<false> {
+): CronTabExpressionString<SB> {
   // Normalize input
   const normalizedInput = input.toLowerCase().trim().replace(/\s+/g, " ");
 
   // Try matching basic patterns
   const basicPattern = PatternMatchers.matchBasicPatterns(normalizedInput);
-  if (basicPattern) {
-    return basicPattern;
-  }
+  if (basicPattern) return basicPattern as CronTabExpressionString<SB>;
 
   // Try matching interval patterns
   const intervalPattern = PatternMatchers.matchIntervalPatterns(
     normalizedInput,
   );
-  if (intervalPattern) {
-    return intervalPattern;
-  }
+  if (intervalPattern) return intervalPattern as CronTabExpressionString<SB>;
 
   // Try matching monthly patterns
   const monthlyPattern = PatternMatchers.matchMonthlyPatterns(normalizedInput);
-  if (monthlyPattern) {
-    return monthlyPattern;
-  }
+  if (monthlyPattern) return monthlyPattern as CronTabExpressionString<SB>;
 
   // Try matching yearly patterns
   const yearlyPattern = PatternMatchers.matchYearlyPatterns(normalizedInput);
-  if (yearlyPattern) {
-    return yearlyPattern;
-  }
+  if (yearlyPattern) return yearlyPattern as CronTabExpressionString<SB>;
 
   // Handle more complex patterns
-  return parseComplexPattern(normalizedInput);
+  return parseComplexPattern<SB>(normalizedInput);
 }
 
 /**
@@ -453,7 +450,9 @@ export function getCronTabExpressionForNaturalLanguageSchedule(
  * @example
  * parseComplexPattern("every Monday at 3pm") // Returns "0 15 * * 1"
  */
-function parseComplexPattern(input: string): string {
+function parseComplexPattern<SB extends boolean = false>(
+  input: string,
+): CronTabExpressionString<SB> {
   // Default values
   let minute = "0";
   let hour = "0";
@@ -463,21 +462,15 @@ function parseComplexPattern(input: string): string {
 
   // Try interval patterns first
   const intervalPattern = PatternMatchers.matchIntervalPatterns(input);
-  if (intervalPattern) {
-    return intervalPattern;
-  }
+  if (intervalPattern) return intervalPattern as CronTabExpressionString<SB>;
 
   // Try monthly patterns
   const monthlyPattern = PatternMatchers.matchMonthlyPatterns(input);
-  if (monthlyPattern) {
-    return monthlyPattern;
-  }
+  if (monthlyPattern) return monthlyPattern as CronTabExpressionString<SB>;
 
   // Try yearly patterns
   const yearlyPattern = PatternMatchers.matchYearlyPatterns(input);
-  if (yearlyPattern) {
-    return yearlyPattern;
-  }
+  if (yearlyPattern) return yearlyPattern as CronTabExpressionString<SB>;
 
   // Try to match day of week patterns
   const dayOfWeekPattern = PatternMatchers.matchDayOfWeekPatterns(input);
@@ -515,7 +508,20 @@ function parseComplexPattern(input: string): string {
     minute = timeRangePattern.minute;
   }
 
-  return `${minute} ${hour} ${dayOfMonth} ${month} ${dayOfWeek}`;
+  // Combine all parts into a cron expression and validate the format
+  const result = `${minute} ${hour} ${dayOfMonth} ${month} ${dayOfWeek}`.trim();
+
+  // Create a new CronTabExpression to validate the result
+  try {
+    // This will throw if the expression is invalid
+    const cron = new CronTabExpression(result as CronTabExpressionString<SB>);
+    return cron.expression;
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    throw new Error(
+      `Invalid cron expression generated: ${result}. ${errorMessage}`,
+    );
+  }
 }
 
 /**
@@ -544,14 +550,23 @@ function parseComplexPattern(input: string): string {
  *
  * @throws {Error} When the expression is empty or doesn't contain exactly 5 fields
  */
-export function getNaturalLanguageScheduleForCronTabExpression(
-  expression: CronTabExpression,
+export function getNaturalLanguageScheduleForCronTabExpression<
+  SB extends boolean = false,
+>(
+  expression: CronTabExpressionString<SB> | CronTabExpression,
 ): NaturalLanguageSchedule | Error {
-  if (!expression || expression.trim() === "") {
+  // If it's a CronTabExpression instance, get the string representation
+  const exprString = expression instanceof CronTabExpression
+    ? expression.expression
+    : expression;
+
+  if (
+    !exprString || (typeof exprString === "string" && exprString.trim() === "")
+  ) {
     return new Error("Cron expression cannot be empty");
   }
 
-  const parts = expression.trim().split(/\s+/);
+  const parts = exprString.trim().split(/\s+/);
   if (parts.length !== 5) {
     return new Error("Invalid cron expression format. Expected 5 fields.");
   }
