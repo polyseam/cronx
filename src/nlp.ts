@@ -2,6 +2,7 @@ import {
   CronTabExpression,
   type CronTabExpressionString,
 } from "./CronTabExpression.ts";
+
 /**
  * This module provides utilities for working with natural language schedules and cron expressions.
  *
@@ -398,34 +399,32 @@ const PatternMatchers = {
  *
  * @throws {Error} If the natural language input cannot be parsed into a valid cron expression
  */
-export function getCronTabExpressionForNaturalLanguageSchedule<
-  SB extends boolean = false,
->(
+export function getCronTabExpressionForNaturalLanguageSchedule(
   input: NaturalLanguageSchedule,
-): CronTabExpressionString<SB> {
+): CronTabExpressionString {
   // Normalize input
   const normalizedInput = input.toLowerCase().trim().replace(/\s+/g, " ");
 
   // Try matching basic patterns
   const basicPattern = PatternMatchers.matchBasicPatterns(normalizedInput);
-  if (basicPattern) return basicPattern as CronTabExpressionString<SB>;
+  if (basicPattern) return basicPattern as CronTabExpressionString;
 
   // Try matching interval patterns
   const intervalPattern = PatternMatchers.matchIntervalPatterns(
     normalizedInput,
   );
-  if (intervalPattern) return intervalPattern as CronTabExpressionString<SB>;
+  if (intervalPattern) return intervalPattern as CronTabExpressionString;
 
   // Try matching monthly patterns
   const monthlyPattern = PatternMatchers.matchMonthlyPatterns(normalizedInput);
-  if (monthlyPattern) return monthlyPattern as CronTabExpressionString<SB>;
+  if (monthlyPattern) return monthlyPattern as CronTabExpressionString;
 
   // Try matching yearly patterns
   const yearlyPattern = PatternMatchers.matchYearlyPatterns(normalizedInput);
-  if (yearlyPattern) return yearlyPattern as CronTabExpressionString<SB>;
+  if (yearlyPattern) return yearlyPattern as CronTabExpressionString;
 
   // Handle more complex patterns
-  return parseComplexPattern<SB>(normalizedInput);
+  return parseComplexPattern(normalizedInput);
 }
 
 /**
@@ -450,9 +449,9 @@ export function getCronTabExpressionForNaturalLanguageSchedule<
  * @example
  * parseComplexPattern("every Monday at 3pm") // Returns "0 15 * * 1"
  */
-function parseComplexPattern<SB extends boolean = false>(
+function parseComplexPattern(
   input: string,
-): CronTabExpressionString<SB> {
+): CronTabExpressionString {
   // Default values
   let minute = "0";
   let hour = "0";
@@ -462,15 +461,15 @@ function parseComplexPattern<SB extends boolean = false>(
 
   // Try interval patterns first
   const intervalPattern = PatternMatchers.matchIntervalPatterns(input);
-  if (intervalPattern) return intervalPattern as CronTabExpressionString<SB>;
+  if (intervalPattern) return intervalPattern as CronTabExpressionString;
 
   // Try monthly patterns
   const monthlyPattern = PatternMatchers.matchMonthlyPatterns(input);
-  if (monthlyPattern) return monthlyPattern as CronTabExpressionString<SB>;
+  if (monthlyPattern) return monthlyPattern as CronTabExpressionString;
 
   // Try yearly patterns
   const yearlyPattern = PatternMatchers.matchYearlyPatterns(input);
-  if (yearlyPattern) return yearlyPattern as CronTabExpressionString<SB>;
+  if (yearlyPattern) return yearlyPattern as CronTabExpressionString;
 
   // Try to match day of week patterns
   const dayOfWeekPattern = PatternMatchers.matchDayOfWeekPatterns(input);
@@ -514,7 +513,7 @@ function parseComplexPattern<SB extends boolean = false>(
   // Create a new CronTabExpression to validate the result
   try {
     // This will throw if the expression is invalid
-    const cron = new CronTabExpression(result as CronTabExpressionString<SB>);
+    const cron = new CronTabExpression(result as CronTabExpressionString);
     return cron.expression;
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
@@ -550,10 +549,8 @@ function parseComplexPattern<SB extends boolean = false>(
  *
  * @throws {Error} When the expression is empty or doesn't contain exactly 5 fields
  */
-export function getNaturalLanguageScheduleForCronTabExpression<
-  SB extends boolean = false,
->(
-  expression: CronTabExpressionString<SB> | CronTabExpression,
+export function getNaturalLanguageScheduleForCronTabExpression(
+  expression: CronTabExpressionString | CronTabExpression,
 ): NaturalLanguageSchedule | Error {
   // If it's a CronTabExpression instance, get the string representation
   const exprString = expression instanceof CronTabExpression
@@ -632,12 +629,12 @@ export function getNaturalLanguageScheduleForCronTabExpression<
     if (hour !== "*") {
       if (hour.includes(",")) {
         // Multiple specific hours
-        const hours = hour.split(",").map((h) => parseInt(h, 10));
+        const hours = hour.split(",").map((h: string) => parseInt(h, 10));
         const times = hours.map((h) => TimeUtils.formatTime(h, minuteNum));
         desc = `At ${times.join(" and ")}`;
       } else if (hour.includes("-")) {
         // Hour range
-        const [startHour, endHour] = hour.split("-").map((h) =>
+        const [startHour, endHour] = hour.split("-").map((h: string) =>
           parseInt(h, 10)
         );
         if (minute.startsWith("*/")) {
@@ -675,7 +672,7 @@ export function getNaturalLanguageScheduleForCronTabExpression<
     } else if (dayOfWeek === "0,6" || dayOfWeek === "6,0") {
       desc += " on weekends";
     } else if (dayOfWeek.includes(",")) {
-      const days = dayOfWeek.split(",").map((d) => parseInt(d, 10));
+      const days = dayOfWeek.split(",").map((d: string) => parseInt(d, 10));
       const dayNames = days.map((d) => daysOfWeek[d]);
 
       if (dayNames.length === 2) {
@@ -685,7 +682,9 @@ export function getNaturalLanguageScheduleForCronTabExpression<
         desc += ` on ${dayNames.join(", ")}, and ${lastDay}`;
       }
     } else if (dayOfWeek.includes("-")) {
-      const [start, end] = dayOfWeek.split("-").map((d) => parseInt(d, 10));
+      const [start, end] = dayOfWeek.split("-").map((d: string) =>
+        parseInt(d, 10)
+      );
       desc += ` on ${daysOfWeek[start]} through ${daysOfWeek[end]}`;
     } else {
       const dayNum = parseInt(dayOfWeek, 10);
@@ -696,7 +695,7 @@ export function getNaturalLanguageScheduleForCronTabExpression<
     if (dayOfMonth === "L") {
       desc += " on the last day of every month";
     } else if (dayOfMonth.includes(",")) {
-      const days = dayOfMonth.split(",").map((d) => parseInt(d, 10));
+      const days = dayOfMonth.split(",").map((d: string) => parseInt(d, 10));
       if (days.length === 2) {
         desc += ` on day ${days[0]} and ${days[1]} of every month`;
       } else {
@@ -724,7 +723,10 @@ export function getNaturalLanguageScheduleForCronTabExpression<
         ];
 
         if (month.includes(",")) {
-          const monthNums = month.split(",").map((m) => parseInt(m, 10));
+          const monthNums = month.split(",").map((m: string) =>
+            parseInt(m, 10)
+          );
+
           const monthNames = monthNums.map((m) => months[m]);
 
           if (monthNames.length === 2) {
@@ -738,7 +740,7 @@ export function getNaturalLanguageScheduleForCronTabExpression<
             }, and ${lastMonth}`;
           }
         } else if (month.includes("-")) {
-          const [startMonth, endMonth] = month.split("-").map((m) =>
+          const [startMonth, endMonth] = month.split("-").map((m: string) =>
             parseInt(m, 10)
           );
           desc += ` on day ${dayNum} from ${months[startMonth]} through ${

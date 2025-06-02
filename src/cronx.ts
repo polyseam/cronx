@@ -33,7 +33,7 @@ export function validateJobLabel(label: string): boolean {
 }
 
 interface ScheduleExecutableOptions {
-  cronTabExpression?: CronTabExpressionString<false>;
+  cronTabExpression?: CronTabExpressionString;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number; // timezone utc offset in hours
@@ -45,7 +45,7 @@ interface ScheduleExecutableOptions {
 
 interface ScheduleExecutableOptionsWithcronTabExpression
   extends ScheduleExecutableOptions {
-  cronTabExpression: CronTabExpressionString<false>;
+  cronTabExpression: CronTabExpressionString;
   naturalLanguageSchedule?: never;
 }
 
@@ -83,21 +83,17 @@ export function scheduleCronWithExecutable(
     | ScheduleExecutableOptionsWithcronTabExpression,
 ) {
   const { suppressStdout, suppressStderr, jobLogger } = opt;
-  let exp = {} as Deno.CronSchedule;
+  let exp = {} as CronTabExpression;
+
   const offset = opt?.offset ?? getLocalUTCOffset();
 
   if (opt.cronTabExpression) {
-    exp = {
-      ...new CronTabExpression(opt.cronTabExpression, offset)
-        .toDenoCronSchedule(),
-    };
+    exp = new CronTabExpression(opt.cronTabExpression, offset);
   } else {
-    exp = {
-      ...CronTabExpression.fromNaturalLanguageSchedule(
-        opt.naturalLanguageSchedule,
-        offset,
-      ).toDenoCronSchedule(),
-    };
+    exp = CronTabExpression.fromNaturalLanguageSchedule(
+      opt.naturalLanguageSchedule,
+      offset,
+    );
   }
 
   const logLevel = opt?.logLevel ?? "INFO";
@@ -119,13 +115,13 @@ export function scheduleCronWithExecutable(
     );
   }
 
-  Deno.cron(label, exp, async () => {
+  Deno.cron(label, exp.toDenoCronSchedule(), async () => {
     await runExecutable(job, { suppressStdout, suppressStderr, jobLogger });
   });
 }
 
 interface ScheduleFunctionOptions {
-  cronTabExpression?: CronTabExpressionString<false>;
+  cronTabExpression?: CronTabExpressionString;
   naturalLanguageSchedule?: string;
   label?: string;
   offset?: number;
@@ -134,7 +130,7 @@ interface ScheduleFunctionOptions {
 
 interface ScheduleFunctionOptionsWithCronTabExpression
   extends ScheduleFunctionOptions {
-  cronTabExpression: CronTabExpressionString<false>;
+  cronTabExpression: CronTabExpressionString;
 }
 interface ScheduleFunctionOptionsWithNaturalLanguageExpression
   extends ScheduleFunctionOptions {
@@ -173,7 +169,7 @@ export function scheduleCronWithFunction(
 
   if (opt.cronTabExpression) {
     exp = new CronTabExpression(
-      opt.cronTabExpression as CronTabExpressionString<false>,
+      opt.cronTabExpression as CronTabExpressionString,
       offset,
     );
   } else if (opt.naturalLanguageSchedule) {

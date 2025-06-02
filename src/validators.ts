@@ -203,7 +203,7 @@ function validateRangePart(
  */
 export function validateCronTabExpressionString(
   expression: string,
-): expression is CronTabExpressionString<false> {
+): expression is CronTabExpressionString {
   const parts = expression.trim().split(/\s+/);
   if (parts.length !== 5) return false;
 

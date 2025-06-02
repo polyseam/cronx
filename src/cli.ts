@@ -15,11 +15,6 @@ import { JobLogger } from "src/JobLogger.ts";
 import { scheduleCronWithExecutable, validateJobLabel } from "src/cronx.ts";
 
 import {
-  getCronTabExpressionForNaturalLanguageSchedule,
-  getNaturalLanguageScheduleForCronTabExpression,
-} from "src/nlp.ts";
-
-import {
   CronTabExpression,
   type CronTabExpressionString,
   getLocalUTCOffset,
@@ -112,30 +107,19 @@ export const cli = new Command().name("cronx")
 
       const nonInteractive = options.yes;
 
-      let cronExpression = new CronTabExpression(tab as CronTabExpressionString)
-        .toString();
-      console.log("cronExpression", cronExpression);
+      let cronExpression: CronTabExpression;
 
       if (tab) {
-        naturalOutput = getNaturalLanguageScheduleForCronTabExpression(
-          cronExpression!,
+        cronExpression = new CronTabExpression(
+          tab as CronTabExpressionString,
+          offset,
         );
-        if (naturalOutput instanceof Error) {
-          cconsole.error(naturalOutput.message);
-          Deno.exit(1);
-        }
+        naturalOutput = cronExpression.toNaturalLanguageSchedule();
       } else if (naturalInput) {
-        cronExpression = getCronTabExpressionForNaturalLanguageSchedule(
+        cronExpression = CronTabExpression.fromNaturalLanguageSchedule(
           naturalInput,
+          offset,
         );
-
-        if (typeof cronExpression !== "string") {
-          cconsole.error(
-            'failed to generate cron expression from "--natural" input',
-          );
-          cconsole.error(naturalInput);
-          Deno.exit(1);
-        }
       } else if (!nonInteractive) {
         const sResponse = await Select.prompt({
           message: `How often do you want to run '${colors.cyan(job)}' ?`,
@@ -151,11 +135,15 @@ export const cli = new Command().name("cronx")
             hint: "e.g., 'every day at 2pm'",
           });
 
-          cronExpression = getCronTabExpressionForNaturalLanguageSchedule(
+          cronExpression = CronTabExpression.fromNaturalLanguageSchedule(
             naturalInput,
+            offset,
           );
         } else {
-          cronExpression = sResponse;
+          cronExpression = new CronTabExpression(
+            sResponse as CronTabExpressionString,
+            offset,
+          );
         }
       } else {
         cconsole.error(
@@ -164,21 +152,14 @@ export const cli = new Command().name("cronx")
         Deno.exit(1);
       }
 
-      naturalOutput = getNaturalLanguageScheduleForCronTabExpression(
-        cronExpression!,
-      );
-
-      if (naturalOutput instanceof Error) {
-        cconsole.error(naturalOutput.message);
-        Deno.exit(1);
-      }
+      naturalOutput = cronExpression.toNaturalLanguageSchedule();
 
       if (!nonInteractive) {
         const go = await Confirm.prompt({
           message: `Do you want to schedule '${
             colors.cyan(job)
           }' to run '${naturalOutput}'?`,
-          hint: cronExpression,
+          hint: cronExpression.toString(),
           default: true,
         });
 
@@ -205,11 +186,11 @@ export const cli = new Command().name("cronx")
       }
 
       scheduleCronWithExecutable(job, {
+        cronTabExpression: cronExpression.toString(),
         suppressStdout,
         suppressStderr,
         jobLogger,
         label,
-        cronxExpression: cronExpression!,
         offset,
       });
     },
