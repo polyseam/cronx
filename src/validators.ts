@@ -382,3 +382,5 @@ export function validateCronTabExpressionString(
     return false;
   }
 }
+
+export default validateCronTabExpressionString;
