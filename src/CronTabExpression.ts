@@ -2,7 +2,7 @@ import { validateCronTabExpressionString } from "./validators.ts";
 import {
   getCronTabExpressionForNaturalLanguageSchedule,
   getNaturalLanguageScheduleForCronTabExpression,
-} from "@polyseam/cronx/nlp";
+} from "./nlp.ts";
 /**
  * Gets the local timezone offset in hours.
  *

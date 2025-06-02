@@ -20,6 +20,8 @@ import {
   getLocalUTCOffset,
 } from "./CronTabExpression.ts";
 
+export { CronTabExpression, type CronTabExpressionString };
+
 /**
  * Validates a job label accepting only alphanumeric characters, whitespace, hyphens, and underscores.
  *
